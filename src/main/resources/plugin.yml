@@ -1,0 +1,5 @@
+name: MobStacker
+version: ${project.version}
+main: me.ufo.mobstacker.MobStacker
+commands:
+  ms:
