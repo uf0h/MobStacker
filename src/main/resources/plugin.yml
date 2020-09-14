@@ -1,5 +1,6 @@
 name: MobStacker
 version: ${project.version}
-main: me.ufo.mobstacker.MobStacker
+main: me.ufo.mobstacker.MSPlugin
 commands:
-  ms:
+  stacker:
+    aliases: [ms]
