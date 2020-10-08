@@ -2,7 +2,7 @@ package me.ufo.mobstacker;
 
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import me.ufo.mobstacker.commands.MobStackerCommand;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
@@ -44,8 +44,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     return instance;
   }
 
-  private final Object2ObjectOpenHashMap<Location, Long> spawnedTimestamps = new Object2ObjectOpenHashMap<>();
-  private final Object2ObjectOpenHashMap<UUID, Long> hitTimestamps = new Object2ObjectOpenHashMap<>();
+  private final Object2LongOpenHashMap<Location> spawnedTimestamps = new Object2LongOpenHashMap<>();
+  private final Object2LongOpenHashMap<UUID> hitTimestamps = new Object2LongOpenHashMap<>();
 
   /* Delay before SpawnerSpawnEvent */
   private int spawnerActivationDelay;
@@ -112,7 +112,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
   public void onBlockBreakEvent(final BlockBreakEvent event) {
     if (event.getBlock().getType() == Material.MOB_SPAWNER) {
-      spawnedTimestamps.remove(event.getBlock().getLocation());
+      spawnedTimestamps.removeLong(event.getBlock().getLocation());
     }
   }
 
@@ -301,7 +301,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
   @EventHandler
   public void onPlayerQuitEvent(final PlayerQuitEvent event) {
-    hitTimestamps.remove(event.getPlayer().getUniqueId());
+    hitTimestamps.removeLong(event.getPlayer().getUniqueId());
   }
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
