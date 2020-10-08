@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -297,6 +298,27 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     for (final ItemStack item : event.getDrops()) {
       location.getWorld().dropItem(location, item);
     }
+
+    final StackedMobDrops drops = StackedMobDrops.getFromEntity(event.getEntityType());
+    if (drops == null) {
+      return;
+    }
+
+    final int maxXp = drops.getMaxXp();
+    if (maxXp == 0) {
+      return;
+    }
+
+    final int lowXp = drops.getLowXp();
+    final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+
+    final Player player = event.getPlayer();
+
+    if (player == null) {
+      return;
+    }
+
+    player.giveExp(xp);
   }
 
   @EventHandler
