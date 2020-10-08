@@ -1,6 +1,7 @@
 name: MobStacker
 version: ${project.version}
 main: me.ufo.mobstacker.MSPlugin
+depend: [Architect]
 commands:
   stacker:
     aliases: [ms]

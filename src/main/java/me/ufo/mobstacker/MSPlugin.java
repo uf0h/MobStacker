@@ -1,9 +1,8 @@
 package me.ufo.mobstacker;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.mobstacker.commands.MobStackerCommand;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
@@ -45,8 +44,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     return instance;
   }
 
-  private final Map<Location, Long> spawnedTimestamps = new HashMap<>();
-  private final Map<UUID, Long> hitTimestamps = new HashMap<>();
+  private final Object2ObjectOpenHashMap<Location, Long> spawnedTimestamps = new Object2ObjectOpenHashMap<>();
+  private final Object2ObjectOpenHashMap<UUID, Long> hitTimestamps = new Object2ObjectOpenHashMap<>();
 
   /* Delay before SpawnerSpawnEvent */
   private int spawnerActivationDelay;

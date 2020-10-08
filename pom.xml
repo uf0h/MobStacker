@@ -59,7 +59,12 @@
     </repositories>
 
     <dependencies>
-        <!-- MINECRAFT RELATED DEPENDENCIES -->
+        <dependency>
+            <groupId>me.ufo.architect</groupId>
+            <artifactId>architect</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>net.techcable.tacospigot</groupId>
             <artifactId>TacoSpigot</artifactId>

@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.mobstacker.MSPlugin;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -13,7 +15,8 @@ import org.bukkit.entity.EntityType;
 
 public final class StackedMob {
 
-  private final static Map<UUID, StackedMob> STACKED_MOBS = new ConcurrentHashMap<>();
+  private final static Object2ObjectMap<UUID, StackedMob> STACKED_MOBS =
+    Object2ObjectMaps.synchronize(new Object2ObjectOpenHashMap<>());
 
   private final Entity entity;
   private final EntityType entityType;
@@ -67,7 +70,7 @@ public final class StackedMob {
     return this;
   }
 
-  public static Map<UUID, StackedMob> getStackedMobs() {
+  public static Object2ObjectMap<UUID, StackedMob> getStackedMobs() {
     return STACKED_MOBS;
   }
 
