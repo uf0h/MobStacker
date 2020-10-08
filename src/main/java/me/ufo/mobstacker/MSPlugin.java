@@ -89,8 +89,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     this.getCommand("stacker").setExecutor(new MobStackerCommand());
 
-    this.mergeTask = scheduler.runTaskTimerAsynchronously(this, new MergeTask(this), 0L, 100L);
-    this.clearTask = scheduler.runTaskTimer(this, new ClearTask(this), 6000L, 6000L);
+    this.mergeTask = scheduler.runTaskTimerAsynchronously(this, new MergeTask(this), 0L, 300L);
+    this.clearTask = scheduler.runTaskTimer(this, new ClearTask(), 6000L, 6000L);
   }
 
   @Override
