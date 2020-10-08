@@ -1,9 +1,6 @@
 package me.ufo.mobstacker;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -11,16 +8,15 @@ import me.ufo.mobstacker.commands.MobStackerCommand;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
+import me.ufo.mobstacker.mob.StackedMobDrops;
 import me.ufo.mobstacker.tasks.ClearTask;
 import me.ufo.mobstacker.tasks.MergeTask;
 import net.techcable.tacospigot.event.entity.SpawnerPreSpawnEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -85,6 +81,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         }
       }
     }
+
+    StackedMobDrops.init();
 
     final PluginManager pm = this.getServer().getPluginManager();
     pm.registerEvents(this, this);
@@ -248,12 +246,15 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     if (event.getCause() == StackedMobDeathCause.FALL) {
       final StackedMob stackedMob = event.getStackedMob();
       final int dropAmount = Math.min(event.getAmountDied(), stackedMobMaxDeath);
+
       stackedMob.destroyEntity();
-      for (final ItemStack item : getDropsForEntity(event.getEntityType())) {
+
+      for (final ItemStack item : StackedMobDrops.getDropsForEntity(event.getEntityType())) {
         final int amount = item.getAmount() * dropAmount;
         item.setAmount(amount);
         event.getDrops().add(item);
       }
+
       StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
     } else if (event.getCause() == StackedMobDeathCause.PLAYER) {
       final StackedMob stackedMob = event.getStackedMob();
@@ -261,9 +262,11 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
       if (decremented <= 0) {
         stackedMob.destroyEntity();
-        for (final ItemStack item : getDropsForEntity(stackedMob.getEntityType())) {
+
+        for (final ItemStack item : StackedMobDrops.getDropsForEntity(stackedMob.getEntityType())) {
           event.getDrops().add(item);
         }
+
         StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
         return;
       }
@@ -273,7 +276,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         ChatColor.YELLOW.toString() + ChatColor.BOLD.toString() + stackedMob.getEntityType().name()
       );
 
-      for (final ItemStack item : getDropsForEntity(stackedMob.getEntityType())) {
+      for (final ItemStack item : StackedMobDrops.getDropsForEntity(stackedMob.getEntityType())) {
         event.getDrops().add(item);
       }
     }
@@ -291,53 +294,6 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   @EventHandler
   public void onPlayerQuitEvent(final PlayerQuitEvent event) {
     hitTimestamps.remove(event.getPlayer().getUniqueId());
-  }
-
-  private static List<ItemStack> getDropsForEntity(final EntityType type) {
-    switch (type) {
-      default:
-        return new ArrayList<>(0);
-
-      case ZOMBIE: {
-        return new ArrayList<>(Arrays.asList(
-          new ItemStack(Material.ROTTEN_FLESH, ThreadLocalRandom.current().nextInt(1, 10))
-        ));
-      }
-
-      case SKELETON: {
-        return new ArrayList<>(Arrays.asList(
-          new ItemStack(Material.BONE, ThreadLocalRandom.current().nextInt(1, 10))
-        ));
-      }
-
-      case CREEPER: {
-        return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 1)));
-      }
-
-      case PIG_ZOMBIE: {
-        return new ArrayList<>(Arrays.asList(
-          new ItemStack(Material.GOLD_INGOT, ThreadLocalRandom.current().nextInt(1, 5))
-        ));
-      }
-
-      case BLAZE: {
-        return new ArrayList<>(Arrays.asList(
-          new ItemStack(Material.BLAZE_ROD, ThreadLocalRandom.current().nextInt(1, 5))
-        ));
-      }
-
-      case IRON_GOLEM: {
-        return new ArrayList<>(Arrays.asList(new ItemStack(Material.IRON_INGOT, 1)));
-      }
-
-      case VILLAGER: {
-        return new ArrayList<>(Arrays.asList(new ItemStack(Material.EMERALD, 1)));
-      }
-
-      case ENDERMAN: {
-        return new ArrayList<>(Arrays.asList(new ItemStack(Material.ENDER_PEARL)));
-      }
-    }
   }
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
