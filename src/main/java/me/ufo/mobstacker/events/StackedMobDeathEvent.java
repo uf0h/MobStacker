@@ -24,6 +24,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
   private final StackedMobDeathCause cause;
   private final Player player;
   private final List<ItemStack> drops;
+  private int xp;
 
   private boolean cancelled;
 
@@ -35,6 +36,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
     this.died = 1;
     this.player = null;
     this.drops = new ArrayList<>();
+    this.xp = 0;
   }
 
   public StackedMobDeathEvent(final StackedMob stackedMob, final StackedMobDeathCause cause, final Player player) {
@@ -45,6 +47,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
     this.player = player;
     this.died = 1;
     this.drops = new ArrayList<>();
+    this.xp = 0;
   }
 
   public StackedMobDeathEvent(final StackedMob stackedMob, final int died, final StackedMobDeathCause cause) {
@@ -55,6 +58,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
     this.cause = cause;
     this.player = null;
     this.drops = new ArrayList<>();
+    this.xp = 0;
   }
 
   public StackedMob getStackedMob() {
@@ -83,6 +87,14 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
 
   public List<ItemStack> getDrops() {
     return drops;
+  }
+
+  public int getXp() {
+    return xp;
+  }
+
+  public void setXp(final int xp) {
+    this.xp = xp;
   }
 
   @Override

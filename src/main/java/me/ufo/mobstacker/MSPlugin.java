@@ -2,6 +2,7 @@ package me.ufo.mobstacker;
 
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import me.ufo.architect.util.Item;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import me.ufo.mobstacker.commands.MobStackerCommand;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
@@ -259,9 +260,9 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       stackedMob.destroyEntity();
 
       for (final ItemStack item : StackedMobDrops.getDropsForEntity(event.getEntityType())) {
-        final int amount = item.getAmount() * dropAmount;
-        item.setAmount(amount);
-        event.getDrops().add(item);
+        final ItemStack cloned = item.clone();
+        cloned.setAmount(item.getAmount() * dropAmount);
+        event.getDrops().add(cloned);
       }
 
       StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
@@ -272,8 +273,22 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       if (decremented <= 0) {
         stackedMob.destroyEntity();
 
-        for (final ItemStack item : StackedMobDrops.getDropsForEntity(stackedMob.getEntityType())) {
-          event.getDrops().add(item);
+        final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
+
+        if (drops != null) {
+          for (final ItemStack item : drops.getDrops()) {
+            event.getDrops().add(item);
+          }
+
+          final int maxXp = drops.getMaxXp();
+          if (maxXp == 0) {
+            return;
+          }
+
+          final int lowXp = drops.getLowXp();
+          final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+
+          event.getPlayer().giveExp(xp);
         }
 
         StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
@@ -285,8 +300,22 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         ChatColor.YELLOW.toString() + ChatColor.BOLD.toString() + stackedMob.getEntityType().name()
       );
 
-      for (final ItemStack item : StackedMobDrops.getDropsForEntity(stackedMob.getEntityType())) {
-        event.getDrops().add(item);
+      final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
+
+      if (drops != null) {
+        for (final ItemStack item : drops.getDrops()) {
+          event.getDrops().add(item);
+        }
+
+        final int maxXp = drops.getMaxXp();
+        if (maxXp == 0) {
+          return;
+        }
+
+        final int lowXp = drops.getLowXp();
+        final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+
+        event.setXp(xp);
       }
     }
   }
@@ -299,24 +328,15 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       location.getWorld().dropItem(location, item);
     }
 
-    final StackedMobDrops drops = StackedMobDrops.getFromEntity(event.getEntityType());
-    if (drops == null) {
-      return;
-    }
-
-    final int maxXp = drops.getMaxXp();
-    if (maxXp == 0) {
+    final int xp = event.getXp();
+    if (xp <= 0) {
       return;
     }
 
     final Player player = event.getPlayer();
-
     if (player == null) {
       return;
     }
-
-    final int lowXp = drops.getLowXp();
-    final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
 
     player.giveExp(xp);
   }
