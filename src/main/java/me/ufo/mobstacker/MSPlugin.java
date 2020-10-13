@@ -309,14 +309,14 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    final int lowXp = drops.getLowXp();
-    final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
-
     final Player player = event.getPlayer();
 
     if (player == null) {
       return;
     }
+
+    final int lowXp = drops.getLowXp();
+    final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
 
     player.giveExp(xp);
   }
