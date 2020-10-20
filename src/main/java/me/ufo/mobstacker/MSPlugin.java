@@ -19,6 +19,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -27,6 +28,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.SpawnerSpawnEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
@@ -172,6 +174,27 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         );
       });
     });
+  }
+
+  @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+  public void onExplosionPrimeEvent(final EntityExplodeEvent event) {
+    final Entity entity = event.getEntity();
+    if (entity.getType() != EntityType.CREEPER) {
+      return;
+    }
+
+    if (!entity.hasMetadata("STACKED_MOB")) {
+      return;
+    }
+
+    final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
+
+    if (stackedMob == null) {
+      return;
+    }
+
+    entity.removeMetadata("STACKED_MOB", this);
+    StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
   }
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
