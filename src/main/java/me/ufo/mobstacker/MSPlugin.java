@@ -200,7 +200,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
   public void onEntityDamageEvent(final EntityDamageEvent event) {
     final Entity entity = event.getEntity();
-    if (entity instanceof Player) {
+    if (!(entity instanceof LivingEntity) || entity instanceof Player) {
       return;
     }
 
