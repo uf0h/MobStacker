@@ -211,6 +211,10 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
       event.setCancelled(true);
 
+      if (event.getDamage() < ((LivingEntity) entity).getHealth()) {
+        return;
+      }
+
       final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
 
       if (stackedMob == null) {
