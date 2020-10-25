@@ -1,0 +1,11 @@
+spawner:
+  # in seconds [-1 to disable]
+  activation-delay: 20
+  min-spawn: 2
+  max-spawn: 5
+
+stacked-mob:
+  name: "&6&lx{amount} &e&l{mob}"
+  # in milliseconds [-1 to disable]
+  hit-delay: 250
+  max-death-on-fall: 100
