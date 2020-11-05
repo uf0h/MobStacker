@@ -12,6 +12,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 
 public final class MobStackerCommand implements CommandExecutor {
 
@@ -59,6 +60,22 @@ public final class MobStackerCommand implements CommandExecutor {
 
           stackedMob.destroyEntity();
           mobIterator.remove();
+        }
+
+        if (args.length == 3) {
+          if ("-a".equalsIgnoreCase(args[2])) {
+            for (final World world : Bukkit.getServer().getWorlds()) {
+              for (final LivingEntity entity : world.getLivingEntities()) {
+                if (entity instanceof Player) {
+                  continue;
+                }
+
+                if (entity.getCustomName() == null) {
+                  entity.remove();
+                }
+              }
+            }
+          }
         }
       } else {
         final EntityType entityType = EntityType.valueOf(args[1].toUpperCase());

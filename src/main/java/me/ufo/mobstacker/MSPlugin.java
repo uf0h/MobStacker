@@ -13,11 +13,11 @@ import me.ufo.mobstacker.tasks.MergeTask;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import net.techcable.tacospigot.event.entity.SpawnerPreSpawnEvent;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -26,6 +26,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
@@ -50,6 +51,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
   private final Object2LongOpenHashMap<Location> spawnedTimestamps = new Object2LongOpenHashMap<>();
   private final Object2LongOpenHashMap<UUID> hitTimestamps = new Object2LongOpenHashMap<>();
+
+  private static final String STACKED_MOB_META = "STACKED_MOB";
 
   /* Delay before SpawnerSpawnEvent */
   private int spawnerActivationDelay;
@@ -91,8 +94,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     for (final World world : this.getServer().getWorlds()) {
       for (final LivingEntity entity : world.getLivingEntities()) {
-        if (entity.hasMetadata("STACKED_MOB")) {
-          entity.removeMetadata("STACKED_MOB", this);
+        if (entity.hasMetadata(STACKED_MOB_META)) {
+          entity.removeMetadata(STACKED_MOB_META, this);
           entity.remove();
         }
       }
@@ -116,8 +119,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     for (final World world : this.getServer().getWorlds()) {
       for (final LivingEntity entity : world.getLivingEntities()) {
-        if (entity.hasMetadata("STACKED_MOB")) {
-          entity.removeMetadata("STACKED_MOB", this);
+        if (entity.hasMetadata(STACKED_MOB_META)) {
+          entity.removeMetadata(STACKED_MOB_META, this);
           entity.remove();
         }
       }
@@ -144,6 +147,14 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   }
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+  public void onCreatureSpawnEvent(final CreatureSpawnEvent event) {
+    final CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
+    if (reason == CreatureSpawnEvent.SpawnReason.MOUNT || reason == CreatureSpawnEvent.SpawnReason.JOCKEY) {
+      event.setCancelled(true);
+    }
+  }
+
+  @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
   public void onSpawnerSpawnEvent(final SpawnerSpawnEvent event) {
     event.setCancelled(true);
 
@@ -155,12 +166,19 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     }
 
     final Entity entity = event.getEntity();
+
+    if (entity.getPassenger() != null) {
+      entity.remove();
+      entity.getPassenger().remove();
+      return;
+    }
+
     final Location location = event.getLocation();
 
     scheduler.runTaskAsynchronously(this, () -> {
       final StackedMob stackedMob = StackedMob.getFirstByDistance(event.getEntity(), 8);
 
-      if (stackedMob == null) {
+      if (stackedMob == null || stackedMob.getEntity() == null || stackedMob.getEntity().isDead()) {
         final int spawns = ThreadLocalRandom.current().nextInt(spawnerSpawnPerMin, spawnerSpawnPerMax);
         Bukkit.getScheduler().runTask(this, () -> {
           //Bukkit.getLogger().info("No stack found, creating stack: ");
@@ -169,7 +187,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
           StackedMob.getStackedMobs().put(spawnedEntity.getUniqueId(), new StackedMob(spawnedEntity, spawns));
 
-          spawnedEntity.setMetadata("STACKED_MOB", new FixedMetadataValue(this, ""));
+          spawnedEntity.setMetadata(STACKED_MOB_META, new FixedMetadataValue(this, ""));
           spawnedEntity.setCustomName(this.getStackedMobName(spawns, entity));
         });
         return;
@@ -192,7 +210,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata("STACKED_MOB")) {
+    if (!entity.hasMetadata(STACKED_MOB_META)) {
       return;
     }
 
@@ -202,7 +220,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    entity.removeMetadata("STACKED_MOB", this);
+    entity.removeMetadata(STACKED_MOB_META, this);
     StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
   }
 
@@ -213,7 +231,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata("STACKED_MOB")) {
+    if (!entity.hasMetadata(STACKED_MOB_META)) {
       return;
     }
 
@@ -227,7 +245,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
 
       if (stackedMob == null) {
-        entity.removeMetadata("STACKED_MOB", this);
+        entity.removeMetadata(STACKED_MOB_META, this);
         entity.remove();
         return;
       }
@@ -251,7 +269,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata("STACKED_MOB")) {
+    if (!entity.hasMetadata(STACKED_MOB_META)) {
       return;
     }
 
@@ -272,7 +290,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
 
       if (stackedMob == null) {
-        entity.removeMetadata("STACKED_MOB", this);
+        entity.removeMetadata(STACKED_MOB_META, this);
         entity.remove();
         return;
       }
@@ -307,6 +325,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
       StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
     } else if (event.getCause() == StackedMobDeathCause.PLAYER) {
+      final Player player = event.getPlayer();
       final StackedMob stackedMob = event.getStackedMob();
       final int decremented = stackedMob.decrementAndGet();
 
@@ -316,8 +335,24 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
 
         if (drops != null) {
-          for (final ItemStack item : drops.getDrops()) {
-            event.getDrops().add(item);
+          if (stackedMob.getEntityType() == EntityType.PIG) {
+            final ItemStack itemInHand = player.getItemInHand();
+            if (itemInHand != null && itemInHand.containsEnchantment(Enchantment.FIRE_ASPECT)) {
+              final ItemStack cooked = drops.getDrops().get(0);
+
+              if (cooked != null) {
+                cooked.setType(Material.GRILLED_PORK);
+                event.getDrops().add(cooked);
+              }
+            } else {
+              for (final ItemStack item : drops.getDrops()) {
+                event.getDrops().add(item);
+              }
+            }
+          } else {
+            for (final ItemStack item : drops.getDrops()) {
+              event.getDrops().add(item);
+            }
           }
 
           final int maxXp = drops.getMaxXp();
@@ -326,7 +361,13 @@ public final class MSPlugin extends JavaPlugin implements Listener {
           }
 
           final int lowXp = drops.getLowXp();
-          final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+
+          final int xp;
+          if (maxXp != lowXp) {
+            xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+          } else {
+            xp = maxXp;
+          }
 
           event.getPlayer().giveExp(xp);
         }
@@ -341,8 +382,24 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
 
       if (drops != null) {
-        for (final ItemStack item : drops.getDrops()) {
-          event.getDrops().add(item);
+        if (stackedMob.getEntityType() == EntityType.PIG) {
+          final ItemStack itemInHand = player.getItemInHand();
+          if (itemInHand != null && itemInHand.containsEnchantment(Enchantment.FIRE_ASPECT)) {
+            final ItemStack cooked = drops.getDrops().get(0);
+
+            if (cooked != null) {
+              cooked.setType(Material.GRILLED_PORK);
+              event.getDrops().add(cooked);
+            }
+          } else {
+            for (final ItemStack item : drops.getDrops()) {
+              event.getDrops().add(item);
+            }
+          }
+        } else {
+          for (final ItemStack item : drops.getDrops()) {
+            event.getDrops().add(item);
+          }
         }
 
         final int maxXp = drops.getMaxXp();
@@ -351,7 +408,13 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         }
 
         final int lowXp = drops.getLowXp();
-        final int xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+
+        final int xp;
+        if (maxXp != lowXp) {
+          xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+        } else {
+          xp = maxXp;
+        }
 
         event.setXp(xp);
       }
@@ -393,7 +456,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     }
   }
 
-  private String getStackedMobName(final int amount, final Entity entity) {
+  public String getStackedMobName(final int amount, final Entity entity) {
     String out = Style.replace(stackedMobName, "{amount}", "" + amount);
     out = Style.replace(out, "{mob}", entity.getType().name());
 

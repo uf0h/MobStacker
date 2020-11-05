@@ -9,6 +9,7 @@ import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.mobstacker.MSPlugin;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -63,7 +64,7 @@ public final class StackedMob {
   }
 
   public StackedMob destroyEntity() {
-    if (entity != null && !entity.isDead()) {
+    if (entity != null) {
       this.entity.removeMetadata("STACKED_MOBS", MSPlugin.getInstance());
       this.entity.remove();
     }
@@ -122,8 +123,9 @@ public final class StackedMob {
     return null;
   }
 
-  public static List<StackedMob> getAllByDistance(final StackedMob stackedMob, final int distance) {
-    final List<StackedMob> out = new ArrayList<>();
+  public static ObjectOpenHashSet<StackedMob> getAllByDistance(final StackedMob stackedMob, final int distance) {
+    final ObjectOpenHashSet<StackedMob> out = new ObjectOpenHashSet<>();
+
     for (final Map.Entry<UUID, StackedMob> entry : STACKED_MOBS.entrySet()) {
       final StackedMob other = entry.getValue();
 
@@ -143,6 +145,7 @@ public final class StackedMob {
         out.add(other);
       }
     }
+
     return out;
   }
 

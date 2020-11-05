@@ -11,6 +11,8 @@ import org.bukkit.inventory.ItemStack;
 public enum StackedMobDrops {
 
   // TODO: better method?...
+  PIG,
+  COW,
   ZOMBIE,
   SKELETON,
   CREEPER,
@@ -61,6 +63,12 @@ public enum StackedMobDrops {
       default:
         return null;
 
+      case PIG:
+        return PIG;
+
+      case COW:
+        return COW;
+
       case ZOMBIE:
         return ZOMBIE;
 
@@ -91,6 +99,14 @@ public enum StackedMobDrops {
     switch (type) {
       default:
         return 0;
+
+      case PIG: {
+        return 1;
+      }
+
+      case COW: {
+        return 1;
+      }
 
       case ZOMBIE: {
         return 1;
@@ -131,6 +147,14 @@ public enum StackedMobDrops {
       default:
         return 0;
 
+      case PIG: {
+        return 1;
+      }
+
+      case COW: {
+        return 1;
+      }
+
       case ZOMBIE: {
         return 3;
       }
@@ -170,6 +194,14 @@ public enum StackedMobDrops {
       default:
         return new ArrayList<>(0);
 
+      case PIG: {
+        return PIG.getDrops();
+      }
+
+      case COW: {
+        return COW.getDrops();
+      }
+
       case ZOMBIE: {
         return ZOMBIE.getDrops();
       }
@@ -208,6 +240,18 @@ public enum StackedMobDrops {
     switch (type) {
       default:
         return new ArrayList<>(0);
+
+      case PIG: {
+        return new ArrayList<>(Arrays.asList(
+          new ItemStack(Material.PORK, ThreadLocalRandom.current().nextInt(1, 3))
+        ));
+      }
+
+      case COW: {
+        return new ArrayList<>(Arrays.asList(
+          new ItemStack(Material.COOKED_BEEF, ThreadLocalRandom.current().nextInt(1, 3))
+        ));
+      }
 
       case ZOMBIE: {
         return new ArrayList<>(Arrays.asList(

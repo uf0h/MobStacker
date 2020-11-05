@@ -1,13 +1,11 @@
 package me.ufo.mobstacker.tasks;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import me.ufo.mobstacker.MSPlugin;
 import me.ufo.mobstacker.mob.StackedMob;
-import org.bukkit.ChatColor;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectIterator;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 public final class MergeTask implements Runnable {
 
@@ -19,42 +17,40 @@ public final class MergeTask implements Runnable {
 
   @Override
   public void run() {
-    final List<UUID> toRemove = new ArrayList<>();
-    final Iterator<Map.Entry<UUID, StackedMob>> mobIterator =
-      StackedMob.getStackedMobs().entrySet().iterator();
+    final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> mobIterator =
+      StackedMob.getStackedMobs().object2ObjectEntrySet().iterator();
 
-    int merged = 0;
+    final ObjectOpenHashSet<UUID> toRemove = new ObjectOpenHashSet<>();
+
     while (mobIterator.hasNext()) {
-      final StackedMob current = mobIterator.next().getValue();
+      final Object2ObjectMap.Entry<UUID, StackedMob> entry = mobIterator.next();
 
-      if (toRemove.contains(current.getUniqueId())) {
+      final StackedMob current = entry.getValue();
+
+      if (toRemove.remove(entry.getKey()) || current.getEntity() == null || current.getEntity().isDead()) {
         mobIterator.remove();
         continue;
       }
 
-      final List<StackedMob> nearbyStackedMobs = StackedMob.getAllByDistance(current, 8);
-      for (final StackedMob nearby : nearbyStackedMobs) {
-        current.addAndGet(nearby.getStackedAmount());
-        toRemove.add(nearby.getUniqueId());
-        merged++;
+      final ObjectOpenHashSet<StackedMob> nearby = StackedMob.getAllByDistance(current, 8);
+
+      for (final StackedMob near : nearby) {
+        current.addAndGet(near.getStackedAmount());
+        toRemove.add(near.getUniqueId());
       }
 
-      if (!nearbyStackedMobs.isEmpty()) {
+      if (!nearby.isEmpty()) {
         instance.getScheduler().runTask(instance, () -> {
-          for (final StackedMob nearby : nearbyStackedMobs) {
-            nearby.destroyEntity();
+          for (final StackedMob near : nearby) {
+            near.destroyEntity();
           }
 
           current.getEntity().setCustomName(
-            ChatColor.GOLD.toString() + ChatColor.BOLD.toString() + "x" + current.getStackedAmount() + " " +
-            ChatColor.YELLOW.toString() + ChatColor.BOLD.toString()  + current.getEntity().getType().name()
+            instance.getStackedMobName(current.getStackedAmount(), current.getEntity())
           );
         });
       }
     }
-
-    //Bukkit.getLogger().info("Merged: " + merged);
-    //Bukkit.getLogger().info("After merge, mobs left: " + StackedMob.getStackedMobs().size());
   }
 
 }
