@@ -1,7 +1,13 @@
 package me.ufo.mobstacker;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import me.ufo.architect.util.Style;
 import me.ufo.mobstacker.commands.MobStackerCommand;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
@@ -10,14 +16,13 @@ import me.ufo.mobstacker.mob.StackedMobDeathCause;
 import me.ufo.mobstacker.mob.StackedMobDrops;
 import me.ufo.mobstacker.tasks.ClearTask;
 import me.ufo.mobstacker.tasks.MergeTask;
+import me.ufo.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import net.techcable.tacospigot.event.entity.SpawnerPreSpawnEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -25,7 +30,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -35,7 +39,6 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -49,27 +52,20 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     return instance;
   }
 
-  private final Object2LongOpenHashMap<Location> spawnedTimestamps = new Object2LongOpenHashMap<>();
-  private final Object2LongOpenHashMap<UUID> hitTimestamps = new Object2LongOpenHashMap<>();
-
-  private static final String STACKED_MOB_META = "STACKED_MOB";
-
-  /* Delay before SpawnerSpawnEvent */
-  private int spawnerActivationDelay;
-  /* Spawns per SpawnerSpawnEvent */
-  private int spawnerSpawnPerMin;
-  private int spawnerSpawnPerMax;
-  /* Name for each stack */
-  private String stackedMobName;
-  /* Max item drop amount for stack on fall damage */
-  private int stackedMobMaxDeath;
-  /* Hit delay */
-  private int stackedMobHitDelay;
-
+  private ScheduledExecutorService service;
+  private Object2LongOpenHashMap<UUID> hitTimestamps;
   private BukkitScheduler scheduler;
-
-  private BukkitTask mergeTask;
   private BukkitTask clearTask;
+  private boolean loaded;
+  private final AtomicBoolean debug = new AtomicBoolean(false);
+  private final AtomicBoolean removing = new AtomicBoolean(false);
+
+  /* CONFIG VALUES */
+  private int SPAWN_MIN;
+  private int SPAWN_MAX;
+  private String MOB_NAME;
+  private int MAX_DEATHS;
+  private int HIT_DELAY;
 
   @Override
   public void onEnable() {
@@ -77,27 +73,36 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     this.saveDefaultConfig();
 
+    final int threads = this.getConfig().getInt("thread-count", 2);
+    this.service = Executors.newScheduledThreadPool(threads, new ThreadFactoryBuilder()
+      .setNameFormat("MobStacker Worker #%d").build());
+
     final ConfigurationSection spawner = this.getConfig().getConfigurationSection("spawner");
-    spawnerActivationDelay = spawner.getInt("activation-delay", 20);
-    if (spawnerActivationDelay != -1) {
-      spawnerActivationDelay = spawnerActivationDelay * 1000;
-    }
-    spawnerSpawnPerMin = spawner.getInt("min-spawn", 2);
-    spawnerSpawnPerMax = spawner.getInt("max-spawn", 5);
+    SPAWN_MIN = spawner.getInt("min-spawn", 2);
+    SPAWN_MAX = spawner.getInt("max-spawn", 5);
 
     final ConfigurationSection mob = this.getConfig().getConfigurationSection("stacked-mob");
-    stackedMobName = Style.translate(mob.getString("name", "&6&lx{amount} &e&l{mob}"));
-    stackedMobMaxDeath = mob.getInt("max-death-on-fall", 100);
-    stackedMobHitDelay = mob.getInt("hit-delay", 250);
+    MOB_NAME = Style.translate(mob.getString("name", "&6&lx{amount} &e&l{mob}"));
+    MAX_DEATHS = mob.getInt("max-death-on-fall", 100);
+
+    HIT_DELAY = mob.getInt("hit-delay", 250);
+    if (HIT_DELAY != -1) {
+      this.hitTimestamps = new Object2LongOpenHashMap<>();
+    }
 
     scheduler = this.getServer().getScheduler();
 
     for (final World world : this.getServer().getWorlds()) {
       for (final LivingEntity entity : world.getLivingEntities()) {
-        if (entity.hasMetadata(STACKED_MOB_META)) {
-          entity.removeMetadata(STACKED_MOB_META, this);
-          entity.remove();
+        if (entity instanceof Player || entity instanceof ArmorStand || entity.hasMetadata("NPC")) {
+          continue;
         }
+
+        if (entity.hasMetadata(StackedMob.METADATA_KEY)) {
+          entity.removeMetadata(StackedMob.METADATA_KEY, this);
+        }
+
+        entity.remove();
       }
     }
 
@@ -108,46 +113,60 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     this.getCommand("stacker").setExecutor(new MobStackerCommand());
 
-    this.mergeTask = scheduler.runTaskTimerAsynchronously(this, new MergeTask(this), 0L, 300L);
-    this.clearTask = scheduler.runTaskTimer(this, new ClearTask(), 6000L, 6000L);
+    //this.mergeTask = scheduler.runTaskTimerAsynchronously(this, new MergeTask(this), 0L, 300L);
+    this.clearTask = scheduler.runTaskTimer(this, new ClearTask(this), 6000L, 6000L);
+
+    service.scheduleAtFixedRate(new MergeTask(this), 15, 15, TimeUnit.SECONDS);
+
+    scheduler.runTaskLater(this, () -> {
+      loaded = true;
+    }, 600L);
   }
 
   @Override
   public void onDisable() {
-    this.mergeTask.cancel();
+    final Iterator<Map.Entry<UUID, StackedMob>> iterator =
+      StackedMob.getStackedMobs().entrySet().iterator();
+
+    while (iterator.hasNext()) {
+      final Map.Entry<UUID, StackedMob> entry = iterator.next();
+
+      entry.getValue().destroyEntity();
+      iterator.remove();
+    }
+
+    this.service.shutdown();
+
+    try {
+      this.service.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    } catch (final InterruptedException ignored) {
+    }
+
+
     this.clearTask.cancel();
 
     for (final World world : this.getServer().getWorlds()) {
       for (final LivingEntity entity : world.getLivingEntities()) {
-        if (entity.hasMetadata(STACKED_MOB_META)) {
-          entity.removeMetadata(STACKED_MOB_META, this);
-          entity.remove();
+        if (entity instanceof Player || entity instanceof ArmorStand || entity.hasMetadata("NPC")) {
+          continue;
         }
-      }
-    }
-  }
 
-  @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-  public void onBlockBreakEvent(final BlockBreakEvent event) {
-    if (event.getBlock().getType() == Material.MOB_SPAWNER) {
-      spawnedTimestamps.removeLong(event.getBlock().getLocation());
-    }
-  }
+        if (entity.hasMetadata(StackedMob.METADATA_KEY)) {
+          entity.removeMetadata(StackedMob.METADATA_KEY, this);
+        }
 
-  @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-  public void onSpawnerPreSpawnEvent(final SpawnerPreSpawnEvent event) {
-    if (spawnerActivationDelay != -1) {
-      final Location location = event.getLocation();
-
-      final long allowedSpawnerSpawnTimestamp = spawnedTimestamps.getOrDefault(location, -1L);
-      if (allowedSpawnerSpawnTimestamp != -1L && System.currentTimeMillis() < allowedSpawnerSpawnTimestamp) {
-        event.setCancelled(true);
+        entity.remove();
       }
     }
   }
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
   public void onCreatureSpawnEvent(final CreatureSpawnEvent event) {
+    if (!loaded || removing.get()) {
+      event.setCancelled(true);
+      return;
+    }
+
     final CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
     if (reason == CreatureSpawnEvent.SpawnReason.MOUNT || reason == CreatureSpawnEvent.SpawnReason.JOCKEY) {
       event.setCancelled(true);
@@ -156,14 +175,12 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
   public void onSpawnerSpawnEvent(final SpawnerSpawnEvent event) {
-    event.setCancelled(true);
-
-    if (spawnerActivationDelay != -1) {
-      spawnedTimestamps.put(
-        event.getSpawner().getLocation(),
-        System.currentTimeMillis() + spawnerActivationDelay
-      );
+    if (!loaded || removing.get()) {
+      event.setCancelled(true);
+      return;
     }
+
+    event.setCancelled(true);
 
     final Entity entity = event.getEntity();
 
@@ -175,31 +192,37 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
     final Location location = event.getLocation();
 
-    scheduler.runTaskAsynchronously(this, () -> {
-      final StackedMob stackedMob = StackedMob.getFirstByDistance(event.getEntity(), 8);
+    service.execute(() -> {
+      try {
+        //final long now = System.nanoTime();
+        final StackedMob stackedMob = StackedMob.getFirstByDistance(entity, 16);
+        //final long complete = System.nanoTime();
 
-      if (stackedMob == null || stackedMob.getEntity() == null || stackedMob.getEntity().isDead()) {
-        final int spawns = ThreadLocalRandom.current().nextInt(spawnerSpawnPerMin, spawnerSpawnPerMax);
-        Bukkit.getScheduler().runTask(this, () -> {
-          //Bukkit.getLogger().info("No stack found, creating stack: ");
+        //instance.getLogger().info("StackedMob#getFirstByDistance took " + ((double) (complete - now) /
+        // 1_000_000_000) + " seconds.");
 
-          final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
+        final int spawns = ThreadLocalRandom.current().nextInt(SPAWN_MIN, SPAWN_MAX);
 
-          StackedMob.getStackedMobs().put(spawnedEntity.getUniqueId(), new StackedMob(spawnedEntity, spawns));
+        if (stackedMob == null || stackedMob.getEntity() == null || stackedMob.getEntity().isDead()) {
+          scheduler.runTask(this, () -> {
+            //Bukkit.getLogger().info("No stack found, creating stack: ");
+            final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
 
-          spawnedEntity.setMetadata(STACKED_MOB_META, new FixedMetadataValue(this, ""));
-          spawnedEntity.setCustomName(this.getStackedMobName(spawns, entity));
-        });
-        return;
+            final UUID uniqueId = spawnedEntity.getUniqueId();
+
+            StackedMob.getStackedMobs().put(uniqueId, new StackedMob(spawnedEntity, spawns));
+          });
+          return;
+        }
+
+        stackedMob.addSetAndGet(spawns);
+      } catch (final Throwable throwable) {
+        if (instance.isDebug()) {
+          instance.getLogger()
+            .info("NON-FATAL ERROR (IGNORE): [MSPlugin L243] " + throwable.getClass().getSimpleName());
+          //throwable.printStackTrace();
+        }
       }
-
-      final int spawns = ThreadLocalRandom.current().nextInt(spawnerSpawnPerMin, spawnerSpawnPerMax);
-      final int stacked = stackedMob.addAndGet(spawns);
-      //Bukkit.getLogger().info("Found stacked mob with new: " + stacked);
-
-      scheduler.runTask(this, () -> {
-        stackedMob.getEntity().setCustomName(this.getStackedMobName(stacked, entity));
-      });
     });
   }
 
@@ -210,7 +233,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata(STACKED_MOB_META)) {
+    if (!entity.hasMetadata(StackedMob.METADATA_KEY)) {
       return;
     }
 
@@ -220,7 +243,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    entity.removeMetadata(STACKED_MOB_META, this);
+    entity.removeMetadata(StackedMob.METADATA_KEY, this);
     StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
   }
 
@@ -231,7 +254,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata(STACKED_MOB_META)) {
+    if (!entity.hasMetadata(StackedMob.METADATA_KEY)) {
       return;
     }
 
@@ -245,7 +268,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
 
       if (stackedMob == null) {
-        entity.removeMetadata(STACKED_MOB_META, this);
+        entity.removeMetadata(StackedMob.METADATA_KEY, this);
         entity.remove();
         return;
       }
@@ -253,7 +276,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       Bukkit.getPluginManager().callEvent(
         new StackedMobDeathEvent(
           stackedMob,
-          Math.min(stackedMob.getStackedAmount(), stackedMobMaxDeath),
+          Math.min(stackedMob.getStackedAmount(), MAX_DEATHS),
           StackedMobDeathCause.FALL
         )
       );
@@ -269,7 +292,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       return;
     }
 
-    if (!entity.hasMetadata(STACKED_MOB_META)) {
+    if (!entity.hasMetadata(StackedMob.METADATA_KEY)) {
       return;
     }
 
@@ -280,7 +303,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     if (event.getDamager() instanceof Player) {
       final Player player = (Player) event.getDamager();
 
-      if (stackedMobHitDelay != -1) {
+      if (HIT_DELAY != -1) {
         final long allowedHitTimestamp = hitTimestamps.getOrDefault(player.getUniqueId(), -1L);
         if (allowedHitTimestamp != -1 && System.currentTimeMillis() < allowedHitTimestamp) {
           return;
@@ -290,7 +313,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
       final StackedMob stackedMob = StackedMob.getByEntityId(entity.getUniqueId());
 
       if (stackedMob == null) {
-        entity.removeMetadata(STACKED_MOB_META, this);
+        entity.removeMetadata(StackedMob.METADATA_KEY, this);
         entity.remove();
         return;
       }
@@ -303,8 +326,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         )
       );
 
-      if (stackedMobHitDelay != -1) {
-        hitTimestamps.put(player.getUniqueId(), System.currentTimeMillis() + stackedMobHitDelay);
+      if (HIT_DELAY != -1) {
+        hitTimestamps.put(player.getUniqueId(), System.currentTimeMillis() + HIT_DELAY);
       }
     }
   }
@@ -313,7 +336,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   public void onStackedMobDeathEvent(final StackedMobDeathEvent event) {
     if (event.getCause() == StackedMobDeathCause.FALL) {
       final StackedMob stackedMob = event.getStackedMob();
-      final int dropAmount = Math.min(event.getAmountDied(), stackedMobMaxDeath);
+      final int dropAmount = Math.min(event.getAmountDied(), MAX_DEATHS);
 
       stackedMob.destroyEntity();
 
@@ -325,7 +348,6 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
       StackedMob.getStackedMobs().remove(stackedMob.getUniqueId());
     } else if (event.getCause() == StackedMobDeathCause.PLAYER) {
-      final Player player = event.getPlayer();
       final StackedMob stackedMob = event.getStackedMob();
       final int decremented = stackedMob.decrementAndGet();
 
@@ -335,24 +357,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
 
         if (drops != null) {
-          if (stackedMob.getEntityType() == EntityType.PIG) {
-            final ItemStack itemInHand = player.getItemInHand();
-            if (itemInHand != null && itemInHand.containsEnchantment(Enchantment.FIRE_ASPECT)) {
-              final ItemStack cooked = drops.getDrops().get(0);
-
-              if (cooked != null) {
-                cooked.setType(Material.GRILLED_PORK);
-                event.getDrops().add(cooked);
-              }
-            } else {
-              for (final ItemStack item : drops.getDrops()) {
-                event.getDrops().add(item);
-              }
-            }
-          } else {
-            for (final ItemStack item : drops.getDrops()) {
-              event.getDrops().add(item);
-            }
+          for (final ItemStack item : drops.getDrops()) {
+            event.getDrops().add(item);
           }
 
           final int maxXp = drops.getMaxXp();
@@ -376,30 +382,13 @@ public final class MSPlugin extends JavaPlugin implements Listener {
         return;
       }
 
-      final Entity entity = stackedMob.getEntity();
-      entity.setCustomName(this.getStackedMobName(decremented, entity));
+      stackedMob.setCustomName();
 
       final StackedMobDrops drops = StackedMobDrops.getFromEntity(stackedMob.getEntityType());
 
       if (drops != null) {
-        if (stackedMob.getEntityType() == EntityType.PIG) {
-          final ItemStack itemInHand = player.getItemInHand();
-          if (itemInHand != null && itemInHand.containsEnchantment(Enchantment.FIRE_ASPECT)) {
-            final ItemStack cooked = drops.getDrops().get(0);
-
-            if (cooked != null) {
-              cooked.setType(Material.GRILLED_PORK);
-              event.getDrops().add(cooked);
-            }
-          } else {
-            for (final ItemStack item : drops.getDrops()) {
-              event.getDrops().add(item);
-            }
-          }
-        } else {
-          for (final ItemStack item : drops.getDrops()) {
-            event.getDrops().add(item);
-          }
+        for (final ItemStack item : drops.getDrops()) {
+          event.getDrops().add(item);
         }
 
         final int maxXp = drops.getMaxXp();
@@ -444,7 +433,7 @@ public final class MSPlugin extends JavaPlugin implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void onPlayerQuitEvent(final PlayerQuitEvent event) {
-    if (stackedMobHitDelay != -1) {
+    if (HIT_DELAY != -1) {
       hitTimestamps.removeLong(event.getPlayer().getUniqueId());
     }
   }
@@ -457,10 +446,22 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   }
 
   public String getStackedMobName(final int amount, final Entity entity) {
-    String out = Style.replace(stackedMobName, "{amount}", "" + amount);
+    String out = Style.replace(MOB_NAME, "{amount}", "" + amount);
     out = Style.replace(out, "{mob}", entity.getType().name());
 
     return out;
+  }
+
+  public AtomicBoolean getRemoving() {
+    return removing;
+  }
+
+  public boolean isDebug() {
+    return debug.get();
+  }
+
+  public void setDebug(final boolean debug) {
+    this.debug.set(debug);
   }
 
   public BukkitScheduler getScheduler() {

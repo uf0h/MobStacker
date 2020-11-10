@@ -243,7 +243,7 @@ public enum StackedMobDrops {
 
       case PIG: {
         return new ArrayList<>(Arrays.asList(
-          new ItemStack(Material.PORK, ThreadLocalRandom.current().nextInt(1, 3))
+          new ItemStack(Material.GRILLED_PORK, ThreadLocalRandom.current().nextInt(1, 3))
         ));
       }
 

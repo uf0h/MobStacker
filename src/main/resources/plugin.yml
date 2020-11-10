@@ -2,6 +2,7 @@ name: MobStacker
 version: ${project.version}
 main: me.ufo.mobstacker.MSPlugin
 depend: [Architect]
+load: POSTWORLD
 commands:
   stacker:
     aliases: [ms]

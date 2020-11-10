@@ -69,8 +69,25 @@
                     <artifactId>fastutil</artifactId>
                     <groupId>it.unimi.dsi</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>adventure-platform-bukkit</artifactId>
+                    <groupId>net.kyori</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>commons-lang3</artifactId>
+                    <groupId>org.apache.commons</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>gson</artifactId>
+                    <groupId>com.google.code.gson</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>guava</artifactId>
+                    <groupId>com.google.guava</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
+
         <dependency>
             <groupId>net.techcable.tacospigot</groupId>
             <artifactId>TacoSpigot</artifactId>
