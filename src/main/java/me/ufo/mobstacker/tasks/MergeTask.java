@@ -10,41 +10,44 @@ import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 public final class MergeTask implements Runnable {
 
-  private final MSPlugin instance;
+  private final MSPlugin plugin;
 
-  public MergeTask(final MSPlugin instance) {
-    this.instance = instance;
+  public MergeTask(final MSPlugin plugin) {
+    this.plugin = plugin;
   }
 
   @Override
   public void run() {
-    if (instance.isDebug()) {
-      instance.getLogger().info("== MERGING START ==");
+    // if spawning is enabled/disabled
+    final boolean after = plugin.isSpawning();
+    plugin.setSpawning(false);
+
+    if (plugin.isDebugging()) {
+      plugin.getLogger().info("== MERGING START ==");
     }
 
     int failed = 0;
     int merge = 0;
     int dead = 0;
 
+    final Map<UUID, StackedMob> stackedMobs = StackedMob.getStackedMobs();
+    final ObjectOpenHashSet<UUID> toRemove = new ObjectOpenHashSet<>();
+    final Iterator<Map.Entry<UUID, StackedMob>> mobIterator = stackedMobs.entrySet().iterator();
+
     try {
-      final Iterator<Map.Entry<UUID, StackedMob>> mobIterator =
-        StackedMob.getStackedMobs().entrySet().iterator();
-
-      final ObjectOpenHashSet<UUID> toRemove = new ObjectOpenHashSet<>();
-
       while (mobIterator.hasNext()) {
-        final Map.Entry<UUID, StackedMob> entry;
-        try {
+        final Map.Entry<UUID, StackedMob> entry = mobIterator.next();
+        /*try {
           entry = mobIterator.next();
         } catch (final IndexOutOfBoundsException | NoSuchElementException | NullPointerException e) {
-          if (instance.isDebug()) {
-            instance.getLogger()
-              .info("NON-FATAL ERROR (IGNORE): [MergeTask L38] " + e.getClass().getSimpleName());
+          if (plugin.isDebugging()) {
+            plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MergeTask L38] " +
+                                    e.getClass().getSimpleName());
             //e.printStackTrace();
           }
           failed++;
           continue;
-        }
+        }*/
 
         final StackedMob current = entry.getValue();
 
@@ -66,15 +69,13 @@ public final class MergeTask implements Runnable {
           continue;
         }
 
-        //final long now = System.nanoTime();
         final ObjectOpenHashSet<StackedMob> nearby;
         try {
           nearby = StackedMob.getAllByDistance(current, 8);
         } catch (final IndexOutOfBoundsException | NoSuchElementException e) {
-          if (instance.isDebug()) {
-            instance.getLogger()
-              .info("NON-FATAL ERROR (IGNORE): [MergeTask L72] " + e.getClass().getSimpleName());
-            //e.printStackTrace();
+          if (plugin.isDebugging()) {
+            plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MergeTask L72] " +
+                                    e.getClass().getSimpleName());
           }
           failed++;
           continue;
@@ -82,18 +83,16 @@ public final class MergeTask implements Runnable {
           failed++;
           continue;
         }
-        //final long complete = System.nanoTime();
-
-        //instance.getLogger().info("StackedMob#getAllByDistance took " + new DecimalFormat("#.##########")
-        // .format((double) (complete - now) / 1_000_000_000.0) + " seconds.");
 
         if (!nearby.isEmpty()) {
           for (final StackedMob near : nearby) {
             current.addAndGet(near.getStackedAmount());
             toRemove.add(near.getUniqueId());
+            //near.destroyEntity();
+            merge++;
           }
 
-          instance.getScheduler().runTask(instance, () -> {
+          plugin.syncTask(() -> {
             current.setCustomName();
 
             for (final StackedMob near : nearby) {
@@ -103,30 +102,33 @@ public final class MergeTask implements Runnable {
         }
       }
 
+      // clean up
       for (final UUID uuid : toRemove) {
-        final StackedMob stackedMob = StackedMob.getByEntityId(uuid);
+        final StackedMob stackedMob = stackedMobs.get(uuid);
 
         if (stackedMob == null) {
           continue;
         }
 
         stackedMob.destroyEntity();
-        StackedMob.getStackedMobs().remove(uuid);
+        stackedMobs.remove(uuid);
       }
     } catch (final Throwable throwable) {
-      if (instance.isDebug()) {
-        instance.getLogger().info("NON-CAUGHT ERROR");
+      if (plugin.isDebugging()) {
+        plugin.getLogger().info("NON-CAUGHT ERROR");
         throwable.printStackTrace();
       }
     }
 
-    if (instance.isDebug()) {
-      instance.getLogger().info("failed: " + failed);
-      instance.getLogger().info("merge: " + merge);
-      instance.getLogger().info("dead: " + dead);
-      instance.getLogger().info("current: " + StackedMob.getStackedMobs().size());
-      instance.getLogger().info("== MERGING END ==");
+    if (plugin.isDebugging()) {
+      plugin.getLogger().info("failed: " + failed);
+      plugin.getLogger().info("merge: " + merge);
+      plugin.getLogger().info("dead: " + dead);
+      plugin.getLogger().info("current: " + stackedMobs.size());
+      plugin.getLogger().info("== MERGING END ==");
     }
+
+    plugin.setSpawning(after);
   }
 
 }

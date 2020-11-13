@@ -16,7 +16,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
 
   private static final HandlerList handlers = new HandlerList();
 
-  private final StackedMob stackedMob;
+  private final StackedMob sm;
   private final EntityType entityType;
   private final Location location;
   private final int died;
@@ -28,10 +28,10 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
 
   private boolean cancelled;
 
-  public StackedMobDeathEvent(final StackedMob stackedMob, final StackedMobDeathCause cause) {
-    this.stackedMob = stackedMob;
-    this.entityType = stackedMob.getEntityType();
-    this.location = stackedMob.getLocation();
+  public StackedMobDeathEvent(final StackedMob sm, final StackedMobDeathCause cause) {
+    this.sm = sm;
+    this.entityType = sm.getType();
+    this.location = sm.getLocation();
     this.cause = cause;
     this.died = 1;
     this.player = null;
@@ -39,10 +39,11 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
     this.xp = 0;
   }
 
-  public StackedMobDeathEvent(final StackedMob stackedMob, final StackedMobDeathCause cause, final Player player) {
-    this.stackedMob = stackedMob;
-    this.entityType = stackedMob.getEntityType();
-    this.location = stackedMob.getLocation();
+  public StackedMobDeathEvent(final StackedMob sm, final StackedMobDeathCause cause,
+                              final Player player) {
+    this.sm = sm;
+    this.entityType = sm.getType();
+    this.location = sm.getLocation();
     this.cause = cause;
     this.player = player;
     this.died = 1;
@@ -50,10 +51,10 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
     this.xp = 0;
   }
 
-  public StackedMobDeathEvent(final StackedMob stackedMob, final int died, final StackedMobDeathCause cause) {
-    this.stackedMob = stackedMob;
-    this.entityType = stackedMob.getEntityType();
-    this.location = stackedMob.getLocation();
+  public StackedMobDeathEvent(final StackedMob sm, final int died, final StackedMobDeathCause cause) {
+    this.sm = sm;
+    this.entityType = sm.getType();
+    this.location = sm.getLocation();
     this.died = died;
     this.cause = cause;
     this.player = null;
@@ -62,7 +63,7 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
   }
 
   public StackedMob getStackedMob() {
-    return stackedMob;
+    return sm;
   }
 
   public int getAmountDied() {
