@@ -1,9 +1,10 @@
 package me.ufo.mobstacker.tasks;
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectIterator;
 import me.ufo.mobstacker.MSPlugin;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -18,6 +19,11 @@ public final class MergeTask implements Runnable {
 
   @Override
   public void run() {
+    if (!plugin.merging) {
+      plugin.getLogger().info("== SKIPPING MERGING ==");
+      return;
+    }
+
     // if spawning is enabled/disabled
     final boolean after = plugin.isSpawning();
     plugin.setSpawning(false);
@@ -30,24 +36,15 @@ public final class MergeTask implements Runnable {
     int merge = 0;
     int dead = 0;
 
-    final Map<UUID, StackedMob> stackedMobs = StackedMob.getStackedMobs();
     final ObjectOpenHashSet<UUID> toRemove = new ObjectOpenHashSet<>();
-    final Iterator<Map.Entry<UUID, StackedMob>> mobIterator = stackedMobs.entrySet().iterator();
+
+    final Object2ObjectOpenHashMap<UUID, StackedMob> stackedMobs = StackedMob.getStackedMobs();
+    final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> mobIterator =
+      stackedMobs.object2ObjectEntrySet().fastIterator();
 
     try {
       while (mobIterator.hasNext()) {
-        final Map.Entry<UUID, StackedMob> entry = mobIterator.next();
-        /*try {
-          entry = mobIterator.next();
-        } catch (final IndexOutOfBoundsException | NoSuchElementException | NullPointerException e) {
-          if (plugin.isDebugging()) {
-            plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MergeTask L38] " +
-                                    e.getClass().getSimpleName());
-            //e.printStackTrace();
-          }
-          failed++;
-          continue;
-        }*/
+        final Object2ObjectMap.Entry<UUID, StackedMob> entry = mobIterator.next();
 
         final StackedMob current = entry.getValue();
 
@@ -87,23 +84,25 @@ public final class MergeTask implements Runnable {
         if (!nearby.isEmpty()) {
           for (final StackedMob near : nearby) {
             current.addAndGet(near.getStackedAmount());
-            toRemove.add(near.getUniqueId());
+            //toRemove.add(near.getUniqueId());
+            near.destroyEntity();
+
             //near.destroyEntity();
             merge++;
           }
 
-          plugin.syncTask(() -> {
-            current.setCustomName();
+          //plugin.syncTask(() -> {
+          current.setCustomName();
 
-            for (final StackedMob near : nearby) {
-              near.destroyEntity();
-            }
-          });
+          //for (final StackedMob near : nearby) {
+          //  near.destroyEntity();
+          //}
+          //});
         }
       }
 
       // clean up
-      for (final UUID uuid : toRemove) {
+      /*for (final UUID uuid : toRemove) {
         final StackedMob stackedMob = stackedMobs.get(uuid);
 
         if (stackedMob == null) {
@@ -112,7 +111,7 @@ public final class MergeTask implements Runnable {
 
         stackedMob.destroyEntity();
         stackedMobs.remove(uuid);
-      }
+      }*/
     } catch (final Throwable throwable) {
       if (plugin.isDebugging()) {
         plugin.getLogger().info("NON-CAUGHT ERROR");

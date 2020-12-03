@@ -7,6 +7,7 @@ import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -77,7 +78,7 @@ public final class EntityListener implements Listener {
       Bukkit.getPluginManager().callEvent(
         new StackedMobDeathEvent(
           sm,
-          Math.min(sm.getStackedAmount(), Config.MAX_DEATHS),
+          FastMath.min(sm.getStackedAmount(), Config.MAX_DEATHS),
           StackedMobDeathCause.FALL
         )
       );

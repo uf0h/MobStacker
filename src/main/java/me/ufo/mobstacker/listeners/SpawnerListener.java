@@ -22,12 +22,15 @@ public final class SpawnerListener implements Listener {
 
   @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
   public void onCreatureSpawnEvent(final CreatureSpawnEvent event) {
+    final CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
+
     if (!plugin.isSpawning()) {
-      event.setCancelled(true);
+      if (reason != CreatureSpawnEvent.SpawnReason.SPAWNER_EGG && reason != CreatureSpawnEvent.SpawnReason.CUSTOM) {
+        event.setCancelled(true);
+      }
       return;
     }
 
-    final CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
     if (reason == CreatureSpawnEvent.SpawnReason.MOUNT || reason == CreatureSpawnEvent.SpawnReason.JOCKEY) {
       event.setCancelled(true);
     }
@@ -52,32 +55,31 @@ public final class SpawnerListener implements Listener {
 
     final Location location = event.getLocation();
 
-    plugin.getService().execute(() -> {
-      try {
-        final StackedMob sm = StackedMob.getFirstByDistance(entity, 16);
-        final int spawns = Config.getRandomSpawnAmount();
+    //plugin.syncTask(() -> {
+    //try {
+    final StackedMob sm = StackedMob.getFirstByDistance(entity, 8);
+    final int spawns = Config.getRandomSpawnAmount();
 
-        if (sm == null || sm.getEntity() == null || sm.getEntity().isDead()) {
-          plugin.syncTask(() -> {
-            //Bukkit.getLogger().info("No stack found, creating stack: ");
-            final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
+    if (sm == null || sm.getEntity() == null || sm.getEntity().isDead()) {
+      //plugin.syncTask(() -> {
+      //Bukkit.getLogger().info("No stack found, creating stack: ");
+      final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
+      final UUID uniqueId = spawnedEntity.getUniqueId();
 
-            final UUID uniqueId = spawnedEntity.getUniqueId();
+      StackedMob.getStackedMobs().put(uniqueId, new StackedMob(spawnedEntity, spawns));
+      //});
+      return;
+    }
 
-            StackedMob.getStackedMobs().put(uniqueId, new StackedMob(spawnedEntity, spawns));
-          });
-          return;
-        }
-
-        sm.addSetAndGet(spawns);
-      } catch (final Throwable throwable) {
+    sm.addSetAndGet(spawns);
+      /*} catch (final Throwable throwable) {
         if (plugin.isDebugging()) {
           plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MSPlugin L243] " +
                                   throwable.getClass().getSimpleName());
           //throwable.printStackTrace();
         }
-      }
-    });
+      }*/
+    //});
   }
 
 }

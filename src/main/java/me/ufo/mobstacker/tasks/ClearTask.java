@@ -12,6 +12,11 @@ public final class ClearTask implements Runnable {
 
   @Override
   public void run() {
+    if (!plugin.clearing) {
+      plugin.getLogger().info("== SKIPPING CLEARING STACKEDMOBS ==");
+      return;
+    }
+
     if (plugin.isDebugging()) {
       plugin.getLogger().info("== CLEARING STACKEDMOBS ==");
     }

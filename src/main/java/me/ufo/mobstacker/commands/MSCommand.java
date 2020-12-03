@@ -255,6 +255,12 @@ public final class MSCommand implements CommandExecutor {
       player.sendMessage("current: " + StackedMob.getStackedMobs().size());
       player.sendMessage("== MERGING END ==");
       */
+    } else if("cleartoggle".equalsIgnoreCase(args[0])) {
+      plugin.clearing = !plugin.clearing;
+      sender.sendMessage("Clearing " + (plugin.clearing ? "enabled" : "disabled"));
+    } else if ("mergetoggle".equalsIgnoreCase(args[0])) {
+      plugin.merging = !plugin.merging;
+      sender.sendMessage("Merging " + (plugin.merging ? "enabled" : "disabled"));
     }
 
     return false;

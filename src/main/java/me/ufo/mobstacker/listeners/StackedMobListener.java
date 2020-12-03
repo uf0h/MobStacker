@@ -7,6 +7,7 @@ import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
 import me.ufo.mobstacker.mob.StackedMobDrops;
+import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -26,7 +27,7 @@ public final class StackedMobListener implements Listener {
   public void onStackedMobDeathEvent(final StackedMobDeathEvent event) {
     if (event.getCause() == StackedMobDeathCause.FALL) {
       final StackedMob sm = event.getStackedMob();
-      final int dropAmount = Math.min(event.getAmountDied(), Config.MAX_DEATHS);
+      final int dropAmount = FastMath.min(event.getAmountDied(), Config.MAX_DEATHS);
 
       sm.destroyEntity();
 

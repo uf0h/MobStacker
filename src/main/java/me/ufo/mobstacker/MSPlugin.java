@@ -1,11 +1,6 @@
 package me.ufo.mobstacker;
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.ufo.mobstacker.commands.MSCommand;
 import me.ufo.mobstacker.listeners.EntityListener;
@@ -16,8 +11,9 @@ import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDrops;
 import me.ufo.mobstacker.tasks.ClearTask;
 import me.ufo.mobstacker.tasks.MergeTask;
-import me.ufo.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectIterator;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
@@ -36,11 +32,13 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   private final AtomicBoolean debug = new AtomicBoolean(false);
   private final AtomicBoolean spawning = new AtomicBoolean(false);
 
-  private final BukkitScheduler scheduler = Bukkit.getScheduler();
-
-  private ScheduledExecutorService service;
+  //private ScheduledExecutorService service;
   private Object2LongOpenHashMap<UUID> hitTimestamps;
   private BukkitTask clearTask;
+  private BukkitTask mergeTask;
+
+  public boolean clearing = true;
+  public boolean merging = true;
 
   public MSPlugin() {
     PLUGIN = this;
@@ -69,35 +67,27 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     pm.registerEvents(new StackedMobListener(this), this);
     pm.registerEvents(new MiscListener(this), this);
 
-    // register thread pool
-    service = Executors.newScheduledThreadPool(
-      this.getConfig().getInt("thread-count", 2),
-      new ThreadFactoryBuilder().setNameFormat("MobStacker Worker #%d").build());
+    final long start = 20L * 30; // 30 seconds
+    final BukkitScheduler scheduler = Bukkit.getScheduler();
 
     // register merge task
-    service.scheduleAtFixedRate(new MergeTask(this), 15, 15, TimeUnit.SECONDS);
+    mergeTask = scheduler.runTaskTimer(this, new MergeTask(this), start + 100, 300L /* after 15 seconds */);
 
     // register clear task
-    clearTask = scheduler.runTaskTimer(this, new ClearTask(this), 0L, 6000L);
+    clearTask = scheduler.runTaskTimer(this, new ClearTask(this), 6000L - (start + 100), 6000L /* after 5 minutes */);
 
     // clear any mobs and enable spawning
     scheduler.runTaskLater(this, () -> {
       this.clearMobs(true, true);
-    }, 600L /* after 30 seconds */);
+    }, start /* after 30 seconds */);
   }
 
   @Override
   public void onDisable() {
+    mergeTask.cancel();
     clearTask.cancel();
+
     this.clearMobs(true, false);
-
-    service.shutdown();
-
-    try {
-      service.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-    } catch (final InterruptedException ignored) {
-      // do nothing
-    }
   }
 
   // clear any mobs and then set spawning to what it was
@@ -112,8 +102,8 @@ public final class MSPlugin extends JavaPlugin implements Listener {
   public void clearMobs(final boolean all, final boolean after) {
     spawning.set(false);
 
-    final Iterator<Map.Entry<UUID, StackedMob>> mobIterator =
-      StackedMob.getStackedMobs().entrySet().iterator();
+    final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> mobIterator =
+      StackedMob.getStackedMobs().object2ObjectEntrySet().fastIterator();
 
     while (mobIterator.hasNext()) {
       final StackedMob current = mobIterator.next().getValue();
@@ -124,7 +114,10 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     if (all) {
       for (final World world : this.getServer().getWorlds()) {
         for (final LivingEntity entity : world.getLivingEntities()) {
-          if (entity instanceof Player || entity instanceof ArmorStand || entity.hasMetadata("NPC")) {
+          if (entity.isDead() ||
+              entity instanceof Player || entity instanceof ArmorStand ||
+              (entity.getCustomName() != null && !entity.getCustomName().isEmpty()) ||
+              entity.hasMetadata("NPC")) {
             continue;
           }
 
@@ -138,14 +131,6 @@ public final class MSPlugin extends JavaPlugin implements Listener {
     }
 
     spawning.set(after);
-  }
-
-  public void syncTask(final Runnable task) {
-    scheduler.runTask(this, task);
-  }
-
-  public ScheduledExecutorService getService() {
-    return service;
   }
 
   public Object2LongOpenHashMap<UUID> getHitTimestamps() {

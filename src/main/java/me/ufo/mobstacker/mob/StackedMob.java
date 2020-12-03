@@ -1,15 +1,14 @@
 package me.ufo.mobstacker.mob;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import me.ufo.mobstacker.Config;
 import me.ufo.mobstacker.MSPlugin;
+import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.bukkit.Bukkit;
+import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
 import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -24,9 +23,11 @@ import org.bukkit.metadata.FixedMetadataValue;
 
 public final class StackedMob {
 
-  public static final String METADATA_KEY = "STACKED_MOB";
   private static final MSPlugin plugin = MSPlugin.get();
-  private static final Map<UUID, StackedMob> STACKED_MOBS = new ConcurrentHashMap<>(1000);
+
+  private static final Object2ObjectOpenHashMap<UUID, StackedMob> STACKED_MOBS = new Object2ObjectOpenHashMap<>(1000);
+
+  public static final String METADATA_KEY = "STACKED_MOB";
   private static final FixedMetadataValue METADATA_VALUE = new FixedMetadataValue(plugin, true);
 
   private final Entity entity;
@@ -95,13 +96,7 @@ public final class StackedMob {
   }
 
   public void setCustomName() {
-    if (!Bukkit.isPrimaryThread()) {
-      plugin.syncTask(() -> {
-        this.entity.setCustomName(Config.getStackedMobName(stacked.get(), entity));
-      });
-    } else {
-      this.entity.setCustomName(Config.getStackedMobName(stacked.get(), entity));
-    }
+    this.entity.setCustomName(Config.getStackedMobName(stacked.get(), entity));
   }
 
   public StackedMob destroyEntity() {
@@ -354,10 +349,10 @@ public final class StackedMob {
     final double locX = location.getX();
     final double locZ = location.getZ();
 
-    final int minX = ((int) Math.floor(locX - radius) >> 4);
-    final int maxX = ((int) Math.floor(locX + radius) >> 4);
-    final int minZ = ((int) Math.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) Math.floor(locZ + radius) >> 4);
+    final int minX = ((int) FastMath.floor(locX - radius) >> 4);
+    final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
+    final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
+    final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
 
     final World world = location.getWorld();
 
@@ -377,7 +372,8 @@ public final class StackedMob {
             final Entity other = nmsEntity.getBukkitEntity();
 
             if (other instanceof LivingEntity) {
-              if (other instanceof Player || other instanceof ArmorStand || other.hasMetadata("NPC")) {
+              if (other instanceof Player || other instanceof ArmorStand ||
+                  other.hasMetadata("NPC")) {
                 continue;
               }
 
@@ -421,10 +417,10 @@ public final class StackedMob {
     final double locX = location.getX();
     final double locZ = location.getZ();
 
-    final int minX = ((int) Math.floor(locX - radius) >> 4);
-    final int maxX = ((int) Math.floor(locX + radius) >> 4);
-    final int minZ = ((int) Math.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) Math.floor(locZ + radius) >> 4);
+    final int minX = ((int) FastMath.floor(locX - radius) >> 4);
+    final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
+    final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
+    final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
 
     final World world = location.getWorld();
 
@@ -444,8 +440,8 @@ public final class StackedMob {
             final Entity compareToEntity = nmsEntity.getBukkitEntity();
 
             if (compareToEntity instanceof LivingEntity) {
-              if (compareToEntity instanceof Player || compareToEntity instanceof ArmorStand || compareToEntity
-                .hasMetadata("NPC")) {
+              if (compareToEntity instanceof Player ||
+                  compareToEntity instanceof ArmorStand || compareToEntity.hasMetadata("NPC")) {
                 continue;
               }
 
@@ -481,7 +477,7 @@ public final class StackedMob {
     return entities;
   }
 
-  public static Map<UUID, StackedMob> getStackedMobs() {
+  public static Object2ObjectOpenHashMap<UUID, StackedMob> getStackedMobs() {
     return STACKED_MOBS;
   }
 
