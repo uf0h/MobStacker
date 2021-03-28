@@ -4,6 +4,7 @@ public enum StackedMobDeathCause {
 
   FALL,
   PLAYER,
+  BURN,
   OTHER
 
 }

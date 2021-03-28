@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import me.ufo.mobstacker.Config;
 import me.ufo.mobstacker.MSPlugin;
+import me.ufo.shaded.com.google.common.base.MoreObjects;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
@@ -42,6 +44,11 @@ public final class StackedMob {
     this.stacked = new AtomicInteger(stacked);
 
     this.entity.setMetadata(METADATA_KEY, METADATA_VALUE);
+
+    final LivingEntity livingEntity = (LivingEntity) this.entity;
+    livingEntity.setHealth(1.0D);
+    livingEntity.setMaxHealth(1.0D);
+    livingEntity.setRemoveWhenFarAway(false);
     this.setCustomName();
   }
 
@@ -99,229 +106,19 @@ public final class StackedMob {
     this.entity.setCustomName(Config.getStackedMobName(stacked.get(), entity));
   }
 
-  public StackedMob destroyEntity() {
+  public void destroyEntity() {
     entity.removeMetadata(METADATA_KEY, plugin);
     entity.remove();
-    return this;
   }
-
-  /*public static StackedMob getFirstByDistance(final Entity entity, final int distance) {
-    final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> iterator =
-      STACKED_MOBS.object2ObjectEntrySet().iterator();
-
-    while (iterator.hasNext()) {
-      final Object2ObjectMap.Entry<UUID, StackedMob> entry = iterator.next();
-
-      if (entry == null) {
-        continue;
-      }
-
-      final StackedMob stackedMob = entry.getValue();
-
-      if (stackedMob == null) {
-        continue;
-      }
-
-      if (stackedMob.getEntity().isDead()) {
-        continue;
-      }
-
-      if (entity.getUniqueId().equals(stackedMob.getUniqueId())) {
-        continue;
-      }
-
-      if (entity.getType() != stackedMob.getEntityType()) {
-        continue;
-      }
-
-      if (entity.getLocation().getWorld() != stackedMob.getLocation().getWorld()) {
-        continue;
-      }
-
-      if (entity.getLocation().distance(stackedMob.getLocation()) <= distance) {
-        return stackedMob;
-      }
-
-    }
-
-    return null;
-  }*/
-
-  /*public static ObjectOpenHashSet<StackedMob> getAllByDistance(final StackedMob stackedMob,
-                                                               final int distance) {
-
-    final ObjectOpenHashSet<StackedMob> out = new ObjectOpenHashSet<>();
-
-    final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> iterator =
-      STACKED_MOBS.object2ObjectEntrySet().iterator();
-
-    while (iterator.hasNext()) {
-      final Object2ObjectMap.Entry<UUID, StackedMob> entry = iterator.next();
-
-      if (entry == null) {
-        continue;
-      }
-
-      final StackedMob other = entry.getValue();
-
-      if (other.getUniqueId().equals(stackedMob.getUniqueId())) {
-        continue;
-      }
-
-      if (other.getEntityType() != stackedMob.getEntityType()) {
-        continue;
-      }
-
-      if (other.getLocation().getWorld() != stackedMob.getLocation().getWorld()) {
-        continue;
-      }
-
-      if (other.getLocation().distance(stackedMob.getLocation()) <= distance) {
-        out.add(other);
-      }
-    }
-
-    return out;
-  }*/
-
-  /*public static StackedMob getFirstByDistance(final Entity entity, final double radius) {
-    final Location location = entity.getLocation();
-    final World world = location.getWorld();
-    final double locX = location.getX();
-    final double locZ = location.getZ();
-
-    final int minX = ((int) Math.floor(locX - radius) >> 4);
-    final int maxX = ((int) Math.floor(locX + radius) >> 4);
-    final int minZ = ((int) Math.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) Math.floor(locZ + radius) >> 4);
-
-    for (int x = minX; x <= maxX; x++) {
-      for (int z = minZ; z <= maxZ; z++) {
-        if (world.isChunkLoaded(x, z)) {
-          try {
-            for (final Entity other : world.getChunkAt(x, z).getEntities()) {
-              if (other instanceof LivingEntity) {
-                if (other instanceof Player || other instanceof ArmorStand || other.hasMetadata("NPC")) {
-                  continue;
-                }
-
-                if (other.isDead()) {
-                  continue;
-                }
-
-                if (entity.getUniqueId().equals(other.getUniqueId())) {
-                  continue;
-                }
-
-                if (entity.getType() != other.getType()) {
-                  continue;
-                }
-
-                final StackedMob stackedMob = STACKED_MOBS.get(other.getUniqueId());
-
-                if (stackedMob != null) {
-                  if (stackedMob.getEntity().isDead()) {
-                    continue;
-                  }
-
-                  if (stackedMob.getLocation().distance(location) <= radius) {
-                    return stackedMob;
-                  }
-                }
-              }
-            }
-          } catch (final Throwable throwable) {
-            if (INSTANCE.isDebug()) {
-              INSTANCE.getLogger()
-                .info("NON-FATAL ERROR (IGNORE): [StackedMob L208] " + throwable.getClass().getSimpleName());
-            }
-          }
-        }
-      }
-    }
-
-    return null;
-  }*/
-
-  /*public static ObjectOpenHashSet<StackedMob> getAllByDistance(final StackedMob stackedMob,
-                                                               final double radius) {
-
-    final ObjectOpenHashSet<StackedMob> entities = new ObjectOpenHashSet<>();
-
-    final Location location = stackedMob.getLocation();
-    final World world = location.getWorld();
-    final double locX = location.getX();
-    final double locZ = location.getZ();
-
-    final int minX = ((int) Math.floor(locX - radius) >> 4);
-    final int maxX = ((int) Math.floor(locX + radius) >> 4);
-    final int minZ = ((int) Math.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) Math.floor(locZ + radius) >> 4);
-
-    for (int x = minX; x <= maxX; x++) {
-      for (int z = minZ; z <= maxZ; z++) {
-        if (world.isChunkLoaded(x, z)) {
-          try {
-            for (final Entity entity : world.getChunkAt(x, z).getEntities()) {
-              if (entity instanceof LivingEntity) {
-                if (entity instanceof Player || entity instanceof ArmorStand || entity
-                  .hasMetadata("NPC")) {
-                  continue;
-                }
-
-                if (entity.isDead()) {
-                  continue;
-                }
-
-                if (stackedMob.getUniqueId().equals(entity.getUniqueId())) {
-                  continue;
-                }
-
-                if (stackedMob.getEntityType() != entity.getType()) {
-                  continue;
-                }
-
-                final StackedMob other = STACKED_MOBS.get(entity.getUniqueId());
-
-                if (other == null) {
-                  continue;
-                }
-
-                entities.add(other);
-              }
-            }
-          } catch (final Throwable throwable) {
-            if (INSTANCE.isDebug()) {
-              INSTANCE.getLogger()
-                .info(
-                  "NON-FATAL ERROR (IGNORE): [StackedMob L269] " + throwable.getClass()
-                    .getSimpleName());
-            }
-          }
-        }
-      }
-    }
-
-    final ObjectIterator<StackedMob> entityIterator = entities.iterator();
-    while (entityIterator.hasNext()) {
-      if (entityIterator.next().getLocation().distance(location) > radius) {
-        entityIterator.remove();
-      }
-    }
-
-    return entities;
-  }*/
 
   @Override
   public String toString() {
-    return "StackedMob{" +
-           "entityIsDead=" + (entity.isDead() ? ChatColor.RED.toString() + "YES" :
-                              ChatColor.GREEN.toString() + "NO") + ChatColor.WHITE.toString() +
-           ", location=" + entity.getLocation().toVector().toString() +
-           ", type=" + type +
-           ", uniqueId=" + uniqueId +
-           ", stacked=" + stacked +
-           '}';
+    return MoreObjects.toStringHelper(this)
+            .add("entity", entity)
+            .add("type", type)
+            .add("uniqueId", uniqueId)
+            .add("stacked", stacked)
+            .toString();
   }
 
   @Override
@@ -336,7 +133,7 @@ public final class StackedMob {
 
     final StackedMob that = (StackedMob) o;
 
-    return entity.equals(that.entity) && type == that.type && uniqueId.equals(that.uniqueId);
+    return type == that.type && uniqueId.equals(that.uniqueId) && entity.equals(that.entity);
   }
 
   @Override
@@ -373,7 +170,7 @@ public final class StackedMob {
 
             if (other instanceof LivingEntity) {
               if (other instanceof Player || other instanceof ArmorStand ||
-                  other.hasMetadata("NPC")) {
+                      other.hasMetadata("NPC")) {
                 continue;
               }
 
@@ -393,10 +190,12 @@ public final class StackedMob {
 
               if (sm != null) {
                 if (sm.getEntity().isDead()) {
+                  sm.destroyEntity();
+                  STACKED_MOBS.remove(other.getUniqueId());
                   continue;
                 }
 
-                if (sm.getLocation().distance(location) <= radius) {
+                if (sm.getLocation().distanceSquared(location) <= radius) {
                   return sm;
                 }
               }
@@ -441,7 +240,7 @@ public final class StackedMob {
 
             if (compareToEntity instanceof LivingEntity) {
               if (compareToEntity instanceof Player ||
-                  compareToEntity instanceof ArmorStand || compareToEntity.hasMetadata("NPC")) {
+                      compareToEntity instanceof ArmorStand || compareToEntity.hasMetadata("NPC")) {
                 continue;
               }
 
@@ -461,10 +260,12 @@ public final class StackedMob {
 
               if (compareToStackedMob != null) {
                 if (compareToStackedMob.getEntity().isDead()) {
+                  compareToStackedMob.destroyEntity();
+                  STACKED_MOBS.remove(compareToEntity.getUniqueId());
                   continue;
                 }
 
-                if (compareToStackedMob.getLocation().distance(location) <= radius) {
+                if (compareToStackedMob.getLocation().distanceSquared(location) <= radius) {
                   entities.add(compareToStackedMob);
                 }
               }

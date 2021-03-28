@@ -68,7 +68,7 @@ public final class MergeTask implements Runnable {
 
         final ObjectOpenHashSet<StackedMob> nearby;
         try {
-          nearby = StackedMob.getAllByDistance(current, 8);
+          nearby = StackedMob.getAllByDistance(current, 64);
         } catch (final IndexOutOfBoundsException | NoSuchElementException e) {
           if (plugin.isDebugging()) {
             plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MergeTask L72] " +

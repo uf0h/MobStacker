@@ -2,6 +2,7 @@ package me.ufo.mobstacker.mob;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Material;
@@ -20,19 +21,12 @@ public enum StackedMobDrops {
   BLAZE,
   IRON_GOLEM,
   VILLAGER,
-  ENDERMAN;
+  ENDERMAN,
+  SILVERFISH,
+  ENDERMITE;
 
-  private List<ItemStack> drops;
   private int lowXp;
   private int maxXp;
-
-  public List<ItemStack> getDrops() {
-    return drops;
-  }
-
-  private void setDrops(final List<ItemStack> drops) {
-    this.drops = drops;
-  }
 
   public int getLowXp() {
     return lowXp;
@@ -52,7 +46,6 @@ public enum StackedMobDrops {
 
   public static void init() {
     for (final StackedMobDrops entity : StackedMobDrops.values()) {
-      entity.setDrops(getDropsForEntity(entity));
       entity.setLowXp(getLowXpForEntity(entity));
       entity.setMaxXp(getMaxXpForEntity(entity));
     }
@@ -92,6 +85,12 @@ public enum StackedMobDrops {
 
       case ENDERMAN:
         return ENDERMAN;
+
+      case SILVERFISH:
+        return SILVERFISH;
+
+      case ENDERMITE:
+        return ENDERMITE;
     }
   }
 
@@ -138,6 +137,14 @@ public enum StackedMobDrops {
 
       case ENDERMAN: {
         return 15;
+      }
+
+      case SILVERFISH: {
+        return 10;
+      }
+
+      case ENDERMITE: {
+        return 10;
       }
     }
   }
@@ -186,57 +193,109 @@ public enum StackedMobDrops {
       case ENDERMAN: {
         return 20;
       }
+
+      case SILVERFISH: {
+        return 20;
+      }
+
+      case ENDERMITE: {
+        return 20;
+      }
     }
   }
 
-  public static List<ItemStack> getDropsForEntity(final EntityType type) {
-    switch (type) {
+  public List<ItemStack> getDrops() {
+    return this.getDrops(1);
+  }
+
+  public List<ItemStack> getDrops(final int deaths) {
+    switch (this) {
       default:
         return new ArrayList<>(0);
 
       case PIG: {
-        return PIG.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.GRILLED_PORK, ThreadLocalRandom.current().nextInt(1, 3) * deaths)
+        ));
       }
 
       case COW: {
-        return COW.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.COOKED_BEEF, ThreadLocalRandom.current().nextInt(1, 3) * deaths)
+        ));
       }
 
       case ZOMBIE: {
-        return ZOMBIE.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.ROTTEN_FLESH, ThreadLocalRandom.current().nextInt(1, 10) * deaths)
+        ));
       }
 
       case SKELETON: {
-        return SKELETON.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.BONE, ThreadLocalRandom.current().nextInt(1, 10) * deaths)
+        ));
       }
 
       case CREEPER: {
-        return CREEPER.getDrops();
+        int amount = 0;
+        for (int i = 0; i < deaths; i++) {
+          final int chance = ThreadLocalRandom.current().nextInt(1, 3); // 1 in 2
+
+          if (chance == 1) {
+            amount++;
+          }
+        }
+
+        if (amount > 0) {
+          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, amount)));
+        }
+
+        return new ArrayList<>(0);
+
+        /*final int chance = ThreadLocalRandom.current().nextInt(1, 3); // 1 in 2
+
+        if (chance == 1) {
+
+          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 1 * deaths)));
+        } else {
+          return new ArrayList<>(0);
+        }*/
       }
 
       case PIG_ZOMBIE: {
-        return PIG_ZOMBIE.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.GOLD_INGOT, ThreadLocalRandom.current().nextInt(1, 5) * deaths)
+        ));
       }
 
       case BLAZE: {
-        return BLAZE.getDrops();
+        return new ArrayList<>(Arrays.asList(
+                new ItemStack(Material.BLAZE_ROD, ThreadLocalRandom.current().nextInt(1, 5) * deaths)
+        ));
       }
 
       case IRON_GOLEM: {
-        return IRON_GOLEM.getDrops();
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.IRON_INGOT, 1 * deaths)));
       }
 
       case VILLAGER: {
-        return VILLAGER.getDrops();
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.EMERALD, 1 * deaths)));
       }
 
       case ENDERMAN: {
-        return ENDERMAN.getDrops();
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.ENDER_PEARL, 1 * deaths)));
       }
+
+      case SILVERFISH:
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.NETHER_STAR, 1 * deaths)));
+
+      case ENDERMITE:
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 48 * deaths)));
     }
   }
 
-  private static List<ItemStack> getDropsForEntity(final StackedMobDrops type) {
+  /*public static List<ItemStack> getDropsForEntity(final StackedMobDrops type) {
     switch (type) {
       default:
         return new ArrayList<>(0);
@@ -266,7 +325,13 @@ public enum StackedMobDrops {
       }
 
       case CREEPER: {
-        return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 1)));
+        final int chance = ThreadLocalRandom.current().nextInt(1, 5); // 1 in 4
+
+        if (chance == 1) {
+          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 1)));
+        } else {
+          return new ArrayList<>(0);
+        }
       }
 
       case PIG_ZOMBIE: {
@@ -292,7 +357,13 @@ public enum StackedMobDrops {
       case ENDERMAN: {
         return new ArrayList<>(Arrays.asList(new ItemStack(Material.ENDER_PEARL)));
       }
+
+      case SILVERFISH:
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.NETHER_STAR)));
+
+      case ENDERMITE:
+        return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 48)));
     }
-  }
+  }*/
 
 }

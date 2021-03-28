@@ -1,14 +1,15 @@
 package me.ufo.mobstacker.listeners;
 
-import java.util.UUID;
 import me.ufo.mobstacker.Config;
 import me.ufo.mobstacker.MSPlugin;
 import me.ufo.mobstacker.events.StackedMobDeathEvent;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
+import me.ufo.mobstacker.mob.StackedMobDrops;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
@@ -18,7 +19,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class EntityListener implements Listener {
 
@@ -60,11 +66,15 @@ public final class EntityListener implements Listener {
       return;
     }
 
-    if (event.getCause() == EntityDamageEvent.DamageCause.FALL) {
+    final EntityDamageEvent.DamageCause cause = event.getCause();
+
+    if (cause == EntityDamageEvent.DamageCause.FALL) {
       event.setCancelled(true);
 
-      if (event.getDamage() < ((LivingEntity) entity).getHealth()) {
-        return;
+      if (entity.getType() != EntityType.IRON_GOLEM) {
+        if (event.getDamage() < ((LivingEntity) entity).getHealth()) {
+          return;
+        }
       }
 
       final StackedMob sm = StackedMob.getByEntityId(entity.getUniqueId());
@@ -75,14 +85,42 @@ public final class EntityListener implements Listener {
         return;
       }
 
-      Bukkit.getPluginManager().callEvent(
-        new StackedMobDeathEvent(
-          sm,
+      final StackedMobDeathEvent out = new StackedMobDeathEvent(sm, StackedMobDeathCause.FALL,
           FastMath.min(sm.getStackedAmount(), Config.MAX_DEATHS),
-          StackedMobDeathCause.FALL
-        )
-      );
-    } else if (event.getCause() != EntityDamageEvent.DamageCause.ENTITY_ATTACK) {
+          null);
+
+//      for (final Player player : Bukkit.getOnlinePlayers()) {
+//        player.sendMessage("Death of " + entity.getType() + " by FALL (" + out.getAmountDied() + ")");
+//      }
+
+      Bukkit.getPluginManager().callEvent(out);
+
+      if (out.isCancelled()) {
+        return;
+      }
+
+      sm.destroyEntity();
+      StackedMob.getStackedMobs().remove(sm.getUniqueId());
+
+      final List<ItemStack> drops = out.getDrops();
+
+      if (drops != null && !drops.isEmpty()) {
+        final Location location = out.getLocation();
+
+        for (final ItemStack item : drops) {
+          location.getWorld().dropItem(location, item);
+        }
+      }
+
+    /*} else if (cause == EntityDamageEvent.DamageCause.LAVA ||
+               cause == EntityDamageEvent.DamageCause.FIRE ||
+               cause == EntityDamageEvent.DamageCause.FIRE_TICK) {
+
+
+    } else {
+      event.setCancelled(true);
+    }*/
+    } else if (cause != EntityDamageEvent.DamageCause.ENTITY_ATTACK) {
       event.setCancelled(true);
     }
   }
@@ -122,18 +160,65 @@ public final class EntityListener implements Listener {
         return;
       }
 
-      Bukkit.getPluginManager().callEvent(
-        new StackedMobDeathEvent(
-          sm,
-          StackedMobDeathCause.PLAYER,
-          player
-        )
-      );
-
       if (hitTimestamps != null) {
         hitTimestamps.put(player.getUniqueId(), System.currentTimeMillis() + Config.HIT_DELAY);
       }
+
+      final StackedMobDeathEvent out = new StackedMobDeathEvent(sm, StackedMobDeathCause.PLAYER, 1, player);
+      Bukkit.getPluginManager().callEvent(out);
+
+      if (out.isCancelled()) {
+        return;
+      }
+
+      final int decremented = sm.decrementAndGet();
+
+      if (decremented <= 0) {
+        sm.destroyEntity();
+
+        StackedMob.getStackedMobs().remove(sm.getUniqueId());
+        return;
+      }
+
+      sm.setCustomName();
+
+      final List<ItemStack> drops = out.getDrops();
+
+      if (drops != null && !drops.isEmpty()) {
+        final Location location = out.getLocation();
+
+        for (final ItemStack item : drops) {
+          location.getWorld().dropItem(location, item);
+        }
+      }
+
+      final int xp = out.getXp();
+      if (xp <= 0) {
+        return;
+      }
+
+      final Player p = out.getPlayer();
+      if (player == null) {
+        return;
+      }
+
+      // TODO: NOTE remove
+      p.giveExp(player.hasPermission("vicious.booster.doubleexp") ? xp * 2 : xp);
     }
+  }
+
+  @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+  public void onEntityDeathEvent(final EntityDeathEvent event) {
+    event.getDrops().clear();
+
+    final StackedMobDrops type = StackedMobDrops.getFromEntity(event.getEntityType());
+
+    if (type == null) {
+      return;
+    }
+
+    event.getDrops().addAll(type.getDrops());
+    event.setDroppedExp(0);
   }
 
 }

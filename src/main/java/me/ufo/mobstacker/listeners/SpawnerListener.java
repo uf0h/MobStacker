@@ -6,6 +6,7 @@ import me.ufo.mobstacker.MSPlugin;
 import me.ufo.mobstacker.mob.StackedMob;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -54,32 +55,77 @@ public final class SpawnerListener implements Listener {
     }
 
     final Location location = event.getLocation();
-
-    //plugin.syncTask(() -> {
-    //try {
-    final StackedMob sm = StackedMob.getFirstByDistance(entity, 8);
+    final StackedMob sm = StackedMob.getFirstByDistance(entity, 64);
     final int spawns = Config.getRandomSpawnAmount();
 
     if (sm == null || sm.getEntity() == null || sm.getEntity().isDead()) {
-      //plugin.syncTask(() -> {
-      //Bukkit.getLogger().info("No stack found, creating stack: ");
       final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
       final UUID uniqueId = spawnedEntity.getUniqueId();
 
+      /*if (entity.getType() == EntityType.SILVERFISH) {
+        spawns = spawns + 10;
+      } else if (entity.getType() == EntityType.ENDERMITE) {
+        spawns = spawns + 10;
+      }*/
+
       StackedMob.getStackedMobs().put(uniqueId, new StackedMob(spawnedEntity, spawns));
-      //});
       return;
     }
 
+    /*if (entity.getType() == EntityType.SILVERFISH) {
+      spawns = spawns + 10;
+    } else if (entity.getType() == EntityType.ENDERMITE) {
+      spawns = spawns + 10;
+    }*/
+
     sm.addSetAndGet(spawns);
-      /*} catch (final Throwable throwable) {
-        if (plugin.isDebugging()) {
-          plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MSPlugin L243] " +
-                                  throwable.getClass().getSimpleName());
-          //throwable.printStackTrace();
-        }
-      }*/
-    //});
   }
+
+  /*
+  @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+  public void onSpawnerSpawnEvent(final SpawnerSpawnEvent event) {
+    if (!plugin.isSpawning()) {
+      event.setCancelled(true);
+      return;
+    }
+
+    event.setCancelled(true);
+
+    final Entity entity = event.getEntity();
+
+    if (entity.getPassenger() != null) {
+      entity.remove();
+      entity.getPassenger().remove();
+      return;
+    }
+
+    final Location location = event.getLocation();
+    final StackedMob sm = StackedMob.getFirstByDistance(entity, 8);
+    int spawns = Config.getRandomSpawnAmount();
+
+    if (sm == null || sm.getEntity() == null || sm.getEntity().isDead()) {
+      final Entity spawnedEntity = location.getWorld().spawnEntity(location, entity.getType());
+      final UUID uniqueId = spawnedEntity.getUniqueId();
+
+      if (entity.getType() == EntityType.SILVERFISH) {
+        spawns = spawns + 10;
+      } else if (entity.getType() == EntityType.ENDERMITE) {
+        spawns = spawns + 10;
+      }
+
+      StackedMob.getStackedMobs().put(uniqueId, new StackedMob(spawnedEntity, spawns));
+
+      return;
+    }
+
+    if (entity.getType() == EntityType.SILVERFISH) {
+      spawns = spawns + 10;
+    } else if (entity.getType() == EntityType.ENDERMITE) {
+      spawns = spawns + 10;
+    }
+
+    sm.addSetAndGet(spawns);
+  }
+   */
 
 }

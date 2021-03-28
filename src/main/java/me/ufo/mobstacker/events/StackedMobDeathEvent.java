@@ -2,8 +2,11 @@ package me.ufo.mobstacker.events;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
+import me.ufo.mobstacker.mob.StackedMobDrops;
 import org.bukkit.Location;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -28,38 +31,37 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
 
   private boolean cancelled;
 
-  public StackedMobDeathEvent(final StackedMob sm, final StackedMobDeathCause cause) {
-    this.sm = sm;
-    this.entityType = sm.getType();
-    this.location = sm.getLocation();
-    this.cause = cause;
-    this.died = 1;
-    this.player = null;
-    this.drops = new ArrayList<>();
-    this.xp = 0;
-  }
-
-  public StackedMobDeathEvent(final StackedMob sm, final StackedMobDeathCause cause,
-                              final Player player) {
+  public StackedMobDeathEvent(final StackedMob sm, final StackedMobDeathCause cause, final int died, final Player player) {
     this.sm = sm;
     this.entityType = sm.getType();
     this.location = sm.getLocation();
     this.cause = cause;
     this.player = player;
-    this.died = 1;
-    this.drops = new ArrayList<>();
-    this.xp = 0;
-  }
-
-  public StackedMobDeathEvent(final StackedMob sm, final int died, final StackedMobDeathCause cause) {
-    this.sm = sm;
-    this.entityType = sm.getType();
-    this.location = sm.getLocation();
     this.died = died;
-    this.cause = cause;
-    this.player = null;
-    this.drops = new ArrayList<>();
-    this.xp = 0;
+
+    final StackedMobDrops type = StackedMobDrops.getFromEntity(entityType);
+
+    this.drops = type.getDrops(died);
+
+    if (player != null) {
+      final int maxXp = type.getMaxXp();
+      if (maxXp == 0) {
+        return;
+      }
+
+      final int lowXp = type.getLowXp();
+
+      final int xp;
+      if (maxXp != lowXp) {
+        xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+      } else {
+        xp = maxXp;
+      }
+
+      this.xp = xp;
+    } else {
+      this.xp = 0;
+    }
   }
 
   public StackedMob getStackedMob() {
