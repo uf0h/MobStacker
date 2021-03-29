@@ -74,8 +74,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot</artifactId>
+            <groupId>net.techable.tacospigot</groupId>
+            <artifactId>tacospigot</artifactId>
             <version>1.8.8-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
             <exclusions>
@@ -85,6 +85,9 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
+
+
     </dependencies>
 
 </project>

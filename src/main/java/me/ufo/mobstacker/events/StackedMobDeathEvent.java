@@ -1,9 +1,6 @@
 package me.ufo.mobstacker.events;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
-
+import me.ufo.mobstacker.Config;
 import me.ufo.mobstacker.mob.StackedMob;
 import me.ufo.mobstacker.mob.StackedMobDeathCause;
 import me.ufo.mobstacker.mob.StackedMobDrops;
@@ -14,6 +11,8 @@ import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
 
 public final class StackedMobDeathEvent extends Event implements Cancellable {
 
@@ -49,11 +48,11 @@ public final class StackedMobDeathEvent extends Event implements Cancellable {
         return;
       }
 
-      final int lowXp = type.getLowXp();
+      final int minXp = type.getMinXp();
 
       final int xp;
-      if (maxXp != lowXp) {
-        xp = ThreadLocalRandom.current().nextInt(lowXp, maxXp);
+      if (maxXp != minXp) {
+        xp = Config.getRandomIntegerBetweenBounds(minXp, maxXp);
       } else {
         xp = maxXp;
       }

@@ -42,8 +42,12 @@ public final class MergeTask implements Runnable {
     final ObjectIterator<Object2ObjectMap.Entry<UUID, StackedMob>> mobIterator =
       stackedMobs.object2ObjectEntrySet().fastIterator();
 
+    final int originalSize = stackedMobs.size();
+
+    int loops = 0;
     try {
       while (mobIterator.hasNext()) {
+        loops++;
         final Object2ObjectMap.Entry<UUID, StackedMob> entry = mobIterator.next();
 
         final StackedMob current = entry.getValue();
@@ -68,7 +72,7 @@ public final class MergeTask implements Runnable {
 
         final ObjectOpenHashSet<StackedMob> nearby;
         try {
-          nearby = StackedMob.getAllByDistance(current, 64);
+          nearby = StackedMob.getAllByRadius(current);
         } catch (final IndexOutOfBoundsException | NoSuchElementException e) {
           if (plugin.isDebugging()) {
             plugin.getLogger().info("NON-FATAL ERROR (IGNORE): [MergeTask L72] " +
@@ -120,10 +124,12 @@ public final class MergeTask implements Runnable {
     }
 
     if (plugin.isDebugging()) {
+      plugin.getLogger().info("original: " + originalSize);
       plugin.getLogger().info("failed: " + failed);
       plugin.getLogger().info("merge: " + merge);
       plugin.getLogger().info("dead: " + dead);
       plugin.getLogger().info("current: " + stackedMobs.size());
+      plugin.getLogger().info("loops: " + loops);
       plugin.getLogger().info("== MERGING END ==");
     }
 

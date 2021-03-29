@@ -1,27 +1,22 @@
 package me.ufo.mobstacker.mob;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import me.ufo.mobstacker.Config;
 import me.ufo.mobstacker.MSPlugin;
 import me.ufo.shaded.com.google.common.base.MoreObjects;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import me.ufo.shaded.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import me.ufo.shaded.org.apache.commons.math3.util.FastMath;
-import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_8_R3.CraftChunk;
-import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.metadata.FixedMetadataValue;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class StackedMob {
 
@@ -114,11 +109,11 @@ public final class StackedMob {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-            .add("entity", entity)
-            .add("type", type)
-            .add("uniqueId", uniqueId)
-            .add("stacked", stacked)
-            .toString();
+        .add("entity", entity)
+        .add("type", type)
+        .add("uniqueId", uniqueId)
+        .add("stacked", stacked)
+        .toString();
   }
 
   @Override
@@ -141,15 +136,88 @@ public final class StackedMob {
     return Objects.hash(entity, type, uniqueId);
   }
 
-  public static StackedMob getFirstByDistance(final Entity entity, final double radius) {
-    final Location location = entity.getLocation();
+  public static ObjectOpenHashSet<StackedMob> getAllByChunk(final Chunk chunk) {
+    final ObjectOpenHashSet<StackedMob> entities = new ObjectOpenHashSet<>();
+
+    final net.minecraft.server.v1_8_R3.Chunk nmsChunk = ((CraftChunk) chunk).getHandle();
+    final List<net.minecraft.server.v1_8_R3.Entity>[] entitySlices = nmsChunk.entitySlices;
+
+    for (final List<net.minecraft.server.v1_8_R3.Entity> slice : entitySlices) {
+      for (final net.minecraft.server.v1_8_R3.Entity nmsEntity : slice) {
+        final Entity entity = nmsEntity.getBukkitEntity();
+
+        if (entity instanceof LivingEntity) {
+          if (entity instanceof Player || entity instanceof ArmorStand || entity.hasMetadata("NPC")) {
+            continue;
+          }
+
+          if (entity.isDead()) {
+            continue;
+          }
+
+          final StackedMob sm = STACKED_MOBS.get(entity.getUniqueId());
+
+          if (sm != null) {
+            if (sm.getEntity().isDead()) {
+              sm.destroyEntity();
+              STACKED_MOBS.remove(entity.getUniqueId());
+              continue;
+            }
+
+            entities.add(sm);
+          }
+        }
+      }
+    }
+
+    return entities;
+  }
+
+  /* TODO: decide whether to use NMS or World#nearbyEntities */
+
+  private static final double RADIUS_XZ = 16;
+  private static final double RADIUS_Y = 32;
+
+  /*public static StackedMob getFirstByRadius(final EntityType entityType, final Location location) {
+    return getFirstByRadius(entityType, location, RADIUS_XZ, RADIUS_Y, RADIUS_XZ);
+  }
+
+  public static StackedMob getFirstByRadius(final EntityType entityType, final Location location,
+                                            final double x, final double y, final double z) {
+
+    for (final Entity entity : location.getWorld().getNearbyEntities(location, x, y, z)) {
+      if (entity.getType() != entityType) {
+        continue;
+      }
+
+      if (entity.hasMetadata("NPC")) {
+        continue;
+      }
+
+      final StackedMob sm = STACKED_MOBS.get(entity.getUniqueId());
+
+      if (sm != null) {
+        return sm;
+      }
+    }
+
+    return null;
+  }*/
+
+  public static StackedMob getFirstByDistance(final EntityType entityType, final Location location) {
+    return _getFirstByDistance(entityType, location, RADIUS_XZ, RADIUS_Y);
+  }
+
+  public static StackedMob _getFirstByDistance(final EntityType entityType, final Location location,
+                                               final double horizontalRadius, final double verticalRadius) {
+
     final double locX = location.getX();
     final double locZ = location.getZ();
 
-    final int minX = ((int) FastMath.floor(locX - radius) >> 4);
-    final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
-    final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
+    final int minX = ((int) FastMath.floor(locX - horizontalRadius) >> 4);
+    final int maxX = ((int) FastMath.floor(locX + horizontalRadius) >> 4);
+    final int minZ = ((int) FastMath.floor(locZ - horizontalRadius) >> 4);
+    final int maxZ = ((int) FastMath.floor(locZ + horizontalRadius) >> 4);
 
     final World world = location.getWorld();
 
@@ -166,38 +234,20 @@ public final class StackedMob {
 
         for (final List<net.minecraft.server.v1_8_R3.Entity> slice : entitySlices) {
           for (final net.minecraft.server.v1_8_R3.Entity nmsEntity : slice) {
-            final Entity other = nmsEntity.getBukkitEntity();
+            final Entity entity = nmsEntity.getBukkitEntity();
 
-            if (other instanceof LivingEntity) {
-              if (other instanceof Player || other instanceof ArmorStand ||
-                      other.hasMetadata("NPC")) {
-                continue;
-              }
+            if (entity.getType() != entityType || entity.isDead()) {
+              continue;
+            }
 
-              if (other.isDead()) {
-                continue;
-              }
+            final StackedMob sm = STACKED_MOBS.get(entity.getUniqueId());
 
-              if (entity.getType() != other.getType()) {
-                continue;
-              }
-
-              if (entity.getUniqueId().equals(other.getUniqueId())) {
-                continue;
-              }
-
-              final StackedMob sm = STACKED_MOBS.get(other.getUniqueId());
-
-              if (sm != null) {
-                if (sm.getEntity().isDead()) {
-                  sm.destroyEntity();
-                  STACKED_MOBS.remove(other.getUniqueId());
-                  continue;
-                }
-
-                if (sm.getLocation().distanceSquared(location) <= radius) {
-                  return sm;
-                }
+            if (sm != null) {
+//              if (FastMath.abs(entity.getLocation().getY() - verticalRadius) <= verticalRadius) {
+//                return sm;
+//              }
+              if (sm.getLocation().distanceSquared(location) <= (verticalRadius * 2)) {
+                return sm;
               }
             }
           }
@@ -208,7 +258,12 @@ public final class StackedMob {
     return null;
   }
 
-  public static ObjectOpenHashSet<StackedMob> getAllByDistance(final StackedMob sm, final double radius) {
+  public static ObjectOpenHashSet<StackedMob> getAllByRadius(final StackedMob sm) {
+    return getAllByRadius(sm, RADIUS_XZ, RADIUS_Y);
+  }
+
+  public static ObjectOpenHashSet<StackedMob> getAllByRadius(final StackedMob sm, final double horizontalRadius,
+                                                             final double verticalRadius) {
 
     final ObjectOpenHashSet<StackedMob> entities = new ObjectOpenHashSet<>();
 
@@ -216,10 +271,10 @@ public final class StackedMob {
     final double locX = location.getX();
     final double locZ = location.getZ();
 
-    final int minX = ((int) FastMath.floor(locX - radius) >> 4);
-    final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
-    final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
-    final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
+    final int minX = ((int) FastMath.floor(locX - horizontalRadius) >> 4);
+    final int maxX = ((int) FastMath.floor(locX + horizontalRadius) >> 4);
+    final int minZ = ((int) FastMath.floor(locZ - horizontalRadius) >> 4);
+    final int maxZ = ((int) FastMath.floor(locZ + horizontalRadius) >> 4);
 
     final World world = location.getWorld();
 
@@ -240,7 +295,7 @@ public final class StackedMob {
 
             if (compareToEntity instanceof LivingEntity) {
               if (compareToEntity instanceof Player ||
-                      compareToEntity instanceof ArmorStand || compareToEntity.hasMetadata("NPC")) {
+                  compareToEntity instanceof ArmorStand || compareToEntity.hasMetadata("NPC")) {
                 continue;
               }
 
@@ -259,15 +314,16 @@ public final class StackedMob {
               final StackedMob compareToStackedMob = STACKED_MOBS.get(compareToEntity.getUniqueId());
 
               if (compareToStackedMob != null) {
-                if (compareToStackedMob.getEntity().isDead()) {
-                  compareToStackedMob.destroyEntity();
-                  STACKED_MOBS.remove(compareToEntity.getUniqueId());
-                  continue;
-                }
-
-                if (compareToStackedMob.getLocation().distanceSquared(location) <= radius) {
+                if (compareToStackedMob.getLocation().distanceSquared(location) <= (verticalRadius * 2)) {
                   entities.add(compareToStackedMob);
                 }
+//                final Location smLocation = sm.getLocation();
+//
+//                if (FastMath.abs(smLocation.getY() - verticalRadius) <= verticalRadius &&
+//                    FastMath.abs(smLocation.getX() - horizontalRadius) <= horizontalRadius &&
+//                    FastMath.abs(smLocation.getZ() - horizontalRadius) <= horizontalRadius) {
+//                  entities.add(compareToStackedMob);
+//                }
               }
             }
           }
@@ -277,6 +333,134 @@ public final class StackedMob {
 
     return entities;
   }
+
+  /*public static StackedMob getFirstByDistance(final EntityType entityType, final Location location, final double radius) {
+      final double locX = location.getX();
+      final double locZ = location.getZ();
+
+      final int minX = ((int) FastMath.floor(locX - radius) >> 4);
+      final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
+      final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
+      final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
+
+      final World world = location.getWorld();
+
+      for (int x = minX; x <= maxX; x++) {
+        for (int z = minZ; z <= maxZ; z++) {
+          if (!world.isChunkLoaded(x, z)) {
+            continue;
+          }
+
+          final Chunk chunk = world.getChunkAt(x, z);
+
+          final net.minecraft.server.v1_8_R3.Chunk nmsChunk = ((CraftChunk) chunk).getHandle();
+          final List<net.minecraft.server.v1_8_R3.Entity>[] entitySlices = nmsChunk.entitySlices;
+
+          for (final List<net.minecraft.server.v1_8_R3.Entity> slice : entitySlices) {
+            for (final net.minecraft.server.v1_8_R3.Entity nmsEntity : slice) {
+              final Entity entity = nmsEntity.getBukkitEntity();
+
+              if (entity instanceof LivingEntity) {
+                if (entity instanceof Player || entity instanceof ArmorStand || entity.hasMetadata("NPC")) {
+                  continue;
+                }
+
+                if (entity.isDead()) {
+                  continue;
+                }
+
+                if (entityType != entity.getType()) {
+                  continue;
+                }
+
+                final StackedMob sm = STACKED_MOBS.get(entity.getUniqueId());
+
+                if (sm != null) {
+                  if (sm.getEntity().isDead()) {
+                    sm.destroyEntity();
+                    STACKED_MOBS.remove(entity.getUniqueId());
+                    continue;
+                  }
+
+                  if (sm.getLocation().distanceSquared(location) <= radius) {
+                    return sm;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    }
+
+    public static StackedMob getFirstByDistance(final Entity entity, final double radius) {
+      final Location location = entity.getLocation();
+      final double locX = location.getX();
+      final double locZ = location.getZ();
+
+      final int minX = ((int) FastMath.floor(locX - radius) >> 4);
+      final int maxX = ((int) FastMath.floor(locX + radius) >> 4);
+      final int minZ = ((int) FastMath.floor(locZ - radius) >> 4);
+      final int maxZ = ((int) FastMath.floor(locZ + radius) >> 4);
+
+      final World world = location.getWorld();
+
+      for (int x = minX; x <= maxX; x++) {
+        for (int z = minZ; z <= maxZ; z++) {
+          if (!world.isChunkLoaded(x, z)) {
+            continue;
+          }
+
+          final Chunk chunk = world.getChunkAt(x, z);
+
+          final net.minecraft.server.v1_8_R3.Chunk nmsChunk = ((CraftChunk) chunk).getHandle();
+          final List<net.minecraft.server.v1_8_R3.Entity>[] entitySlices = nmsChunk.entitySlices;
+
+          for (final List<net.minecraft.server.v1_8_R3.Entity> slice : entitySlices) {
+            for (final net.minecraft.server.v1_8_R3.Entity nmsEntity : slice) {
+              final Entity other = nmsEntity.getBukkitEntity();
+
+              if (other instanceof LivingEntity) {
+                if (other instanceof Player || other instanceof ArmorStand ||
+                        other.hasMetadata("NPC")) {
+                  continue;
+                }
+
+                if (other.isDead()) {
+                  continue;
+                }
+
+                if (entity.getType() != other.getType()) {
+                  continue;
+                }
+
+                if (entity.getUniqueId().equals(other.getUniqueId())) {
+                  continue;
+                }
+
+                final StackedMob sm = STACKED_MOBS.get(other.getUniqueId());
+
+                if (sm != null) {
+                  if (sm.getEntity().isDead()) {
+                    sm.destroyEntity();
+                    STACKED_MOBS.remove(other.getUniqueId());
+                    continue;
+                  }
+
+                  if (sm.getLocation().distanceSquared(location) <= radius) {
+                    return sm;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return null;
+    }*/
 
   public static Object2ObjectOpenHashMap<UUID, StackedMob> getStackedMobs() {
     return STACKED_MOBS;

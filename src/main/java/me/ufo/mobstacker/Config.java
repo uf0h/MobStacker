@@ -2,7 +2,8 @@ package me.ufo.mobstacker;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
+
 import me.ufo.architect.util.Style;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -10,6 +11,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 
 public final class Config {
+
+  public static final Random RANDOM = new Random();
 
   public static int MAX_DEATHS = 100;
   public static int HIT_DELAY = 100;
@@ -61,7 +64,7 @@ public final class Config {
       return MIN_SPAWN;
     }
 
-    return ThreadLocalRandom.current().nextInt(MIN_SPAWN, MAX_SPAWN);
+    return getRandomIntegerBetweenBounds(MIN_SPAWN, MAX_SPAWN);
   }
 
   public static String getStackedMobName(final int amount, final Entity entity) {
@@ -69,6 +72,10 @@ public final class Config {
     out = Style.replace(out, "{mob}", entity.getType().name());
 
     return out;
+  }
+
+  public static int getRandomIntegerBetweenBounds(final int min, final int max) {
+    return RANDOM.nextInt(max - min + 1) + min;
   }
 
 }

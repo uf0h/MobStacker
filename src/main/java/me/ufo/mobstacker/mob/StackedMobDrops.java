@@ -1,13 +1,13 @@
 package me.ufo.mobstacker.mob;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import me.ufo.mobstacker.Config;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public enum StackedMobDrops {
 
@@ -25,15 +25,15 @@ public enum StackedMobDrops {
   SILVERFISH,
   ENDERMITE;
 
-  private int lowXp;
+  private int minXp;
   private int maxXp;
 
-  public int getLowXp() {
-    return lowXp;
+  public int getMinXp() {
+    return minXp;
   }
 
-  public void setLowXp(final int lowXp) {
-    this.lowXp = lowXp;
+  public void setMinXp(final int minXp) {
+    this.minXp = minXp;
   }
 
   public int getMaxXp() {
@@ -46,7 +46,7 @@ public enum StackedMobDrops {
 
   public static void init() {
     for (final StackedMobDrops entity : StackedMobDrops.values()) {
-      entity.setLowXp(getLowXpForEntity(entity));
+      entity.setMinXp(getLowXpForEntity(entity));
       entity.setMaxXp(getMaxXpForEntity(entity));
     }
   }
@@ -215,63 +215,57 @@ public enum StackedMobDrops {
 
       case PIG: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.GRILLED_PORK, ThreadLocalRandom.current().nextInt(1, 3) * deaths)
+            new ItemStack(Material.GRILLED_PORK, Config.getRandomIntegerBetweenBounds(1, 3) * deaths)
         ));
       }
 
       case COW: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.COOKED_BEEF, ThreadLocalRandom.current().nextInt(1, 3) * deaths)
+            new ItemStack(Material.COOKED_BEEF, Config.getRandomIntegerBetweenBounds(1, 3) * deaths)
         ));
       }
 
       case ZOMBIE: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.ROTTEN_FLESH, ThreadLocalRandom.current().nextInt(1, 10) * deaths)
+            new ItemStack(Material.ROTTEN_FLESH, Config.getRandomIntegerBetweenBounds(1, 10) * deaths)
         ));
       }
 
       case SKELETON: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.BONE, ThreadLocalRandom.current().nextInt(1, 10) * deaths)
+            new ItemStack(Material.BONE, Config.getRandomIntegerBetweenBounds(1, 10) * deaths)
         ));
       }
 
       case CREEPER: {
-        int amount = 0;
-        for (int i = 0; i < deaths; i++) {
-          final int chance = ThreadLocalRandom.current().nextInt(1, 3); // 1 in 2
+        final int chance = Config.getRandomIntegerBetweenBounds(1, 3); // 1 in 2
 
-          if (chance == 1) {
-            amount++;
-          }
-        }
+        if (chance != 1) {
+          //chance = ThreadLocalRandom.current().nextInt(1, 3);
 
-        if (amount > 0) {
-          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, amount)));
-        }
-
-        return new ArrayList<>(0);
-
-        /*final int chance = ThreadLocalRandom.current().nextInt(1, 3); // 1 in 2
-
-        if (chance == 1) {
-
-          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, 1 * deaths)));
-        } else {
+          //if (chance != 1) {
           return new ArrayList<>(0);
-        }*/
+          //}
+        }
+
+        final int half = deaths / 2;
+
+        if (half <= 1) {
+          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, deaths)));
+        } else {
+          return new ArrayList<>(Arrays.asList(new ItemStack(Material.TNT, half)));
+        }
       }
 
       case PIG_ZOMBIE: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.GOLD_INGOT, ThreadLocalRandom.current().nextInt(1, 5) * deaths)
+            new ItemStack(Material.GOLD_INGOT, Config.getRandomIntegerBetweenBounds(1, 5) * deaths)
         ));
       }
 
       case BLAZE: {
         return new ArrayList<>(Arrays.asList(
-                new ItemStack(Material.BLAZE_ROD, ThreadLocalRandom.current().nextInt(1, 5) * deaths)
+            new ItemStack(Material.BLAZE_ROD, Config.getRandomIntegerBetweenBounds(1, 5) * deaths)
         ));
       }
 
