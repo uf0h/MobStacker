@@ -52,7 +52,11 @@ public final class SpawnerListener implements Listener {
     final Location location = event.getLocation();
     final EntityType entityType = event.getSpawnedType();
     final StackedMob sm = StackedMob.getFirstByDistance(entityType, location);
-    final int spawns = Config.getRandomSpawnAmount();
+    int spawns = Config.getRandomSpawnAmount();
+
+    if (entityType == EntityType.SILVERFISH || entityType == EntityType.ENDERMITE) {
+      spawns = spawns + 10;
+    }
 
     if (sm == null || sm.getEntity() == null || sm.getEntity().isDead()) {
       //this.plugin.getLogger().info("Spawning " + spawns + " " + entityType);

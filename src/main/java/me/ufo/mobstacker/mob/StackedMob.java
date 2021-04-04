@@ -43,7 +43,7 @@ public final class StackedMob {
     final LivingEntity livingEntity = (LivingEntity) this.entity;
     livingEntity.setHealth(1.0D);
     livingEntity.setMaxHealth(1.0D);
-    livingEntity.setRemoveWhenFarAway(false);
+    livingEntity.setRemoveWhenFarAway(true);
     this.setCustomName();
   }
 
